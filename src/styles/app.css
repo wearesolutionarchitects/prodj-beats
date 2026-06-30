@@ -53,6 +53,21 @@ h2 {
   font-size: 0.82rem;
 }
 
+.session-pill--live {
+  border-color: rgba(61, 220, 151, 0.5);
+  color: var(--color-accent);
+}
+
+.session-pill--connecting {
+  border-color: rgba(77, 171, 247, 0.5);
+  color: var(--color-accent-cool);
+}
+
+.session-pill--offline {
+  border-color: rgba(255, 107, 107, 0.5);
+  color: var(--color-danger);
+}
+
 .pulse {
   width: 8px;
   height: 8px;
