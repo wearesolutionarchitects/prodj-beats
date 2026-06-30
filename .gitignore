@@ -4,6 +4,7 @@ dist/
 .astro/
 apps/bridge/build/
 apps/bridge/lib/*.jar
+apps/bridge/logs/
 *.pyc
 __pycache__/
 .DS_Store

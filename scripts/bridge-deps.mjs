@@ -7,6 +7,7 @@ const libRoot = join(root, 'apps', 'bridge', 'lib');
 const defaultGroupId = 'org.deepsymmetry';
 const defaultArtifactId = 'beat-link';
 const extraRuntimeCoordinates = [
+  { groupId: 'org.acplt.remotetea', artifactId: 'remotetea-oncrpc', version: '1.1.4' },
   { groupId: 'org.slf4j', artifactId: 'slf4j-simple', version: '1.7.36' }
 ];
 
@@ -71,7 +72,7 @@ async function resolveRuntime(coordinate, inheritedManagement) {
   const pom = await loadPom(coordinate);
   const packaging = pom.packaging ?? 'jar';
 
-  if (packaging === 'jar') {
+  if (isJarPackaging(packaging)) {
     selectArtifact(coordinate);
   }
 
@@ -212,8 +213,12 @@ function parseDependencies(pomText, properties) {
     type: resolveValue(tag(dependency, 'type'), properties)
   })).filter((dependency) => {
     const type = dependency.type ?? 'jar';
-    return dependency.groupId && dependency.artifactId && type === 'jar';
+    return dependency.groupId && dependency.artifactId && isJarPackaging(type);
   });
+}
+
+function isJarPackaging(value) {
+  return ['jar', 'bundle'].includes(value ?? 'jar');
 }
 
 function resolveValue(value, properties) {

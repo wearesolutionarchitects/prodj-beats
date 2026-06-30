@@ -4,6 +4,10 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.nio.ByteBuffer;
+import java.util.Base64;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 final class BeatLinkAdapter {
@@ -16,6 +20,7 @@ final class BeatLinkAdapter {
     void start() {
         try {
             startVirtualCdj();
+            startMetadataServices();
             startDeviceFinder();
             startBeatFinder();
             broadcaster.publish(CanonicalEvent.sys(200, "beat-link bridge started"));
@@ -57,6 +62,29 @@ final class BeatLinkAdapter {
                 this::handleBeat
         );
         invokeIfPresent(finder, "start");
+    }
+
+    private void startMetadataServices() throws ReflectiveOperationException {
+        Object crateDigger = singleton("org.deepsymmetry.beatlink.data.CrateDigger");
+        invokeIfPresent(crateDigger, "start");
+
+        Object metadataFinder = singleton("org.deepsymmetry.beatlink.data.MetadataFinder");
+        registerListener(
+                metadataFinder,
+                "addTrackMetadataListener",
+                "org.deepsymmetry.beatlink.data.TrackMetadataListener",
+                this::handleTrackMetadata
+        );
+        invokeIfPresent(metadataFinder, "start");
+
+        Object artFinder = singleton("org.deepsymmetry.beatlink.data.ArtFinder");
+        registerListener(
+                artFinder,
+                "addAlbumArtListener",
+                "org.deepsymmetry.beatlink.data.AlbumArtListener",
+                this::handleAlbumArt
+        );
+        invokeIfPresent(artFinder, "start");
     }
 
     private void registerListener(
@@ -124,6 +152,50 @@ final class BeatLinkAdapter {
         ));
     }
 
+    private void handleTrackMetadata(Method method, Object update) {
+        Object metadata = fieldValue(update, "metadata");
+        if (metadata == null) {
+            return;
+        }
+
+        int player = intFieldValue(update, "player");
+        Object trackReference = fieldValue(metadata, "trackReference");
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("album", searchableLabel(firstValue(metadata, "getAlbum")));
+        payload.put("artist", searchableLabel(firstValue(metadata, "getArtist")));
+        payload.put("cues", List.of());
+        payload.put("duration", durationMillis(intValue(metadata, "getDuration")));
+        payload.put("player", Math.max(0, player));
+        payload.put("source", sourcePayload(trackReference));
+        payload.put("tempo", normalizedTempo(intValue(metadata, "getTempo")));
+        payload.put("title", stringValue(metadata, "getTitle"));
+        payload.put("year", nullablePositive(intValue(metadata, "getYear")));
+
+        broadcaster.publish(new CanonicalEvent("track", 1, System.currentTimeMillis(), payload));
+    }
+
+    private void handleAlbumArt(Method method, Object update) {
+        Object art = fieldValue(update, "art");
+        if (art == null) {
+            return;
+        }
+
+        Object rawBytes = firstValue(art, "getRawBytes");
+        if (!(rawBytes instanceof ByteBuffer byteBuffer)) {
+            return;
+        }
+
+        ByteBuffer duplicate = byteBuffer.duplicate();
+        byte[] bytes = new byte[duplicate.remaining()];
+        duplicate.get(bytes);
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("jpg", Base64.getEncoder().encodeToString(bytes));
+        payload.put("player", Math.max(0, intFieldValue(update, "player")));
+
+        broadcaster.publish(new CanonicalEvent("art", 1, System.currentTimeMillis(), payload));
+    }
+
     private Object singleton(String className) throws ReflectiveOperationException {
         Class<?> type = Class.forName(className);
         return type.getMethod("getInstance").invoke(null);
@@ -161,6 +233,57 @@ final class BeatLinkAdapter {
     private Boolean booleanValue(Object target, String... methodNames) {
         Object value = firstValue(target, methodNames);
         return value instanceof Boolean bool ? bool : null;
+    }
+
+    private Object fieldValue(Object target, String fieldName) {
+        if (target == null) {
+            return null;
+        }
+        try {
+            return target.getClass().getField(fieldName).get(target);
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private int intFieldValue(Object target, String fieldName) {
+        Object value = fieldValue(target, fieldName);
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        return -1;
+    }
+
+    private Map<String, Object> sourcePayload(Object trackReference) {
+        Map<String, Object> source = new LinkedHashMap<>();
+        source.put("id", Math.max(0, intFieldValue(trackReference, "rekordboxId")));
+        source.put("player", Math.max(0, intFieldValue(trackReference, "player")));
+        Object slot = fieldValue(trackReference, "slot");
+        source.put("slot", slot == null ? "UNKNOWN" : slot.toString());
+        return source;
+    }
+
+    private String searchableLabel(Object searchableItem) {
+        Object label = fieldValue(searchableItem, "label");
+        return label == null ? null : label.toString();
+    }
+
+    private Integer durationMillis(int durationSeconds) {
+        if (durationSeconds < 0) {
+            return null;
+        }
+        return durationSeconds * 1000;
+    }
+
+    private Double normalizedTempo(int rawTempo) {
+        if (rawTempo < 0) {
+            return null;
+        }
+        return rawTempo > 1000 ? rawTempo / 100.0d : (double) rawTempo;
+    }
+
+    private Integer nullablePositive(int value) {
+        return value <= 0 ? null : value;
     }
 
     private Object firstValue(Object target, String... methodNames) {

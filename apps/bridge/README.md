@@ -39,6 +39,19 @@ Use `--host` and `--port` to override the bind address:
 npm run bridge:run -- --host 127.0.0.1 --port 8788
 ```
 
+Every canonical event published by the bridge is printed to stdout and appended
+to:
+
+```text
+apps/bridge/logs/events.jsonl
+```
+
+Use `--event-log` to write to a different JSONL file:
+
+```bash
+npm run bridge:run -- --event-log /tmp/prodj-beats-events.jsonl
+```
+
 ## beat-link runtime jars
 
 This repo does not vendor Java dependencies. Fetch `beat-link` and its runtime
