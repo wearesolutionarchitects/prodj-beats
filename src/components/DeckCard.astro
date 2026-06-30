@@ -1,0 +1,67 @@
+---
+import type { DeckState } from '../domain/deck';
+
+interface Props {
+  deck: DeckState;
+}
+
+const { deck } = Astro.props;
+const phraseTotal = deck.structure?.phrases.reduce((sum, phrase) => sum + phrase.beats, 0) ?? 0;
+---
+
+<article class="deck-card" data-player={deck.player}>
+  <header class="deck-card__header">
+    <div>
+      <p class="eyebrow">Player {deck.player}</p>
+      <h2>{deck.track?.title ?? 'No track loaded'}</h2>
+    </div>
+    <span class:list={['status', deck.device?.active ? 'status--active' : '']}>
+      {deck.device?.active ? 'online' : 'idle'}
+    </span>
+  </header>
+
+  <div class="deck-card__body">
+    <div class="artwork" aria-hidden="true">
+      {
+        deck.artworkDataUri ? (
+          <img src={deck.artworkDataUri} alt="" />
+        ) : (
+          <div class="artwork__fallback">
+            <span>{deck.track?.artist?.slice(0, 2).toUpperCase() ?? 'VL'}</span>
+          </div>
+        )
+      }
+    </div>
+
+    <dl class="facts">
+      <div>
+        <dt>Artist</dt>
+        <dd>{deck.track?.artist ?? '-'}</dd>
+      </div>
+      <div>
+        <dt>Album</dt>
+        <dd>{deck.track?.album ?? '-'}</dd>
+      </div>
+      <div>
+        <dt>BPM</dt>
+        <dd>{deck.beat?.tempo?.toFixed(2) ?? deck.track?.tempo?.toFixed(2) ?? '-'}</dd>
+      </div>
+      <div>
+        <dt>Beat</dt>
+        <dd>{deck.beat?.beat ?? '-'}</dd>
+      </div>
+    </dl>
+  </div>
+
+  <div class="phrase-map" aria-label={`Structure for player ${deck.player}`}>
+    {
+      deck.structure?.phrases.map((phrase) => (
+        <span
+          class={`phrase phrase--${phrase.kind.replaceAll('_', '-')}`}
+          style={`--weight: ${phraseTotal > 0 ? phrase.beats / phraseTotal : 0}`}
+          title={`${phrase.kind}: ${phrase.beats} beats`}
+        />
+      ))
+    }
+  </div>
+</article>

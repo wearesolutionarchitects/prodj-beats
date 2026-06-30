@@ -1,0 +1,19 @@
+.DS_Store
+node_modules/
+dist/
+.astro/
+apps/bridge/build/
+apps/bridge/lib/*.jar
+*.pyc
+__pycache__/
+.DS_Store
+
+# Legacy runtime artifacts are intentionally excluded from the Astro refactor.
+*.exe
+*.dll
+vizlink
+payload.json
+exe/
+payloads/
+templates/
+static/

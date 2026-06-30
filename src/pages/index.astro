@@ -1,0 +1,42 @@
+---
+import DeckCard from '../components/DeckCard.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { ProDjLinkSession } from '../application/session';
+import { fixtureEvents } from '../infrastructure/fixtures';
+import '../styles/app.css';
+
+const session = new ProDjLinkSession();
+
+for (const event of fixtureEvents) {
+  session.apply(event);
+}
+
+const snapshot = session.snapshot();
+---
+
+<BaseLayout title="ProDJ Beats | ProDJ Link Monitor">
+  <div class="app-shell">
+    <section class="topbar" aria-label="Session status">
+      <div>
+        <p class="eyebrow">ProDJ Beats</p>
+        <h1>ProDJ Link Monitor</h1>
+      </div>
+      <div class="session-pill">
+        <span class="pulse" aria-hidden="true"></span>
+        Fixture replay
+      </div>
+    </section>
+
+    <section class="deck-grid" aria-label="Player">
+      {snapshot.decks.map((deck) => <DeckCard deck={deck} />)}
+    </section>
+
+    <section class="event-panel" aria-label="Event stream">
+      <header>
+        <h2>Event Stream</h2>
+        <span>{snapshot.lastEvent?.type ?? 'none'}</span>
+      </header>
+      <pre>{JSON.stringify(snapshot.lastEvent, null, 2)}</pre>
+    </section>
+  </div>
+</BaseLayout>
