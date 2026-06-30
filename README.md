@@ -1,52 +1,99 @@
 # ProDJ Beats
 
-Greenfield refactor of the former `vizlink-to-python` prototype, aligned with
-the Astro conventions used in `/Users/heikofanieng/GitHub/01-Heiko/heiko`.
+ProDJ Beats is a cross-platform Astro and TypeScript web app for visualizing
+live Pioneer ProDJ Link state. The application consumes normalized event
+payloads, validates them with Zod and reduces them into a session state that
+the UI can render.
 
-The new baseline is a cross-platform Astro and TypeScript SPA. The old Python
-and executable based flow is intentionally not part of the target runtime. Its
-useful lessons were kept as domain knowledge: ProDJ Link events arrive as typed
-payloads and are reduced into a session state that the UI can render.
+The current project is a greenfield Astro baseline. Python, Flask and native
+runtime binaries from the earlier prototype are intentionally not part of this
+codebase.
+
+## Current Scope
+
+- Astro SPA with Preact integration.
+- Typed ProDJ Link event contracts.
+- Session reducer for devices, tracks, beats, structure, artwork and messages.
+- Fixture replay for deterministic local development.
+- Java bridge sidecar skeleton for Deep-Symmetry `beat-link`.
+- GitHub Actions CI for app and bridge verification.
 
 ## Architecture
 
 ```text
+apps/
+  bridge/          Java sidecar. Publishes normalized events over WebSocket.
+
 src/
-  domain/          Pure models, schemas and parser classes.
-  application/     Use cases and state reducers.
-  infrastructure/  Fixture and future transport adapters.
+  application/     Session use cases and state reducers.
   components/      Astro UI components.
-  layouts/         Shared document shell, following the Heiko project layout.
+  content/         Prepared documentation content for future Starlight setup.
+  domain/          Pure models, schemas and parser classes.
+  infrastructure/  Fixture and future transport adapters.
+  layouts/         Shared document shell.
   pages/           SPA entry points.
   scripts/         npm-driven project scripts.
-apps/
-  bridge/          Java beat-link sidecar with a local WebSocket endpoint.
+
+scripts/           Root-level npm helper scripts.
 ```
 
-The backend integration is a small Java sidecar based on Deep-Symmetry
-`beat-link`. It exposes normalized JSON events over a local WebSocket endpoint.
-Java stays behind an adapter boundary; Astro and TypeScript remain the
-application and UI layer.
+Java stays behind the bridge boundary. Astro and TypeScript remain the
+application and UI layer. The bridge currently exposes:
+
+```text
+ws://127.0.0.1:8787/events
+```
 
 ## Commands
 
+Install dependencies:
+
 ```bash
 npm install
+```
+
+Run the web app:
+
+```bash
 npm run dev
+```
+
+Run verification:
+
+```bash
 npm run test
+npm run check
+npm run fixture:replay
 npm run build
 npm run bridge:build
+```
+
+Run the Java bridge:
+
+```bash
 npm run bridge:run
 ```
 
-`npm run bridge:run` starts a WebSocket server on `ws://127.0.0.1:8787/events`.
-Place the `beat-link` runtime jars and their dependencies in `apps/bridge/lib/`
-before connecting real ProDJ Link hardware.
+`npm run bridge:run` starts the local WebSocket server. Place the `beat-link`
+runtime jars and their dependencies in `apps/bridge/lib/` before connecting
+real ProDJ Link hardware. JAR files are intentionally ignored and not committed.
 
-## Principles
+## Development Principles
 
-- DRY: one event contract, reused by fixtures, tests and UI.
-- KISS: fixture replay first, live transport later.
-- Clean Architecture: domain does not depend on Astro or browser APIs.
-- OOP where it helps: parser, deck aggregate and session reducer are classes.
-- Cross-platform: no `.exe` runtime artifacts.
+- Keep the event contract canonical and shared by fixtures, tests and UI.
+- Prefer fixture replay before live transport for testable UI work.
+- Keep domain code independent from Astro, browser APIs and the Java bridge.
+- Use npm scripts as the primary developer entry points.
+- Keep the repository cross-platform: no committed `.exe`, `.dll` or `.jar`
+  runtime artifacts.
+
+## Documentation
+
+Developer documentation is being prepared under:
+
+```text
+src/content/docs/
+```
+
+This keeps the project ready for a later Starlight and Astro content collections
+setup without making documentation tooling part of the runtime yet.
