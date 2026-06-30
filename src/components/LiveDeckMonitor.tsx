@@ -75,14 +75,6 @@ export default function LiveDeckMonitor() {
           <DeckCardView key={deck.player} deck={deck} />
         ))}
       </section>
-
-      <section class="event-panel" aria-label="Event stream">
-        <header>
-          <h2>Event Stream</h2>
-          <span>{snapshot.lastEvent?.type ?? 'none'}</span>
-        </header>
-        <pre>{JSON.stringify(snapshot.lastEvent, null, 2)}</pre>
-      </section>
     </>
   );
 }
