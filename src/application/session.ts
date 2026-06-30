@@ -42,7 +42,7 @@ export class ProDjLinkSession {
     }
 
     if (event.type === 'art') {
-      this.deck(event.payload.player).updateArtwork(event.payload.jpg);
+      this.deck(event.payload.player).updateArtwork(event.payload.jpg, event.payload.player, event.ms);
     }
 
     if (event.type === 'sys') {

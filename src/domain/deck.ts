@@ -84,6 +84,7 @@ export class Deck {
   }
 
   updateBeat(event: BeatEvent): void {
+    this.touchDevice(event.payload.player ?? this.state.player, event.ms);
     this.state.beat = {
       beat: event.payload.beat,
       beatNumber: event.payload.beatNumber ?? null,
@@ -102,6 +103,7 @@ export class Deck {
   }
 
   updateTrack(event: TrackEvent): void {
+    this.touchDevice(event.payload.player, event.ms);
     this.state.track = {
       album: event.payload.album ?? null,
       artist: event.payload.artist ?? null,
@@ -115,6 +117,7 @@ export class Deck {
   }
 
   updateStructure(event: StructureEvent): void {
+    this.touchDevice(event.payload.player, event.ms);
     this.state.structure = {
       bank: event.payload.bank,
       mood: event.payload.mood,
@@ -124,7 +127,26 @@ export class Deck {
     };
   }
 
-  updateArtwork(jpg: string): void {
+  updateArtwork(jpg: string, player: PlayerId, updatedAt: number): void {
+    this.touchDevice(player, updatedAt);
     this.state.artworkDataUri = `data:image/jpeg;base64,${jpg}`;
+  }
+
+  private touchDevice(player: PlayerId, updatedAt: number): void {
+    if (this.state.device) {
+      this.state.device = {
+        ...this.state.device,
+        active: true,
+        updatedAt
+      };
+      return;
+    }
+
+    this.state.device = {
+      active: true,
+      name: `Player ${player}`,
+      player,
+      updatedAt
+    };
   }
 }
