@@ -1,6 +1,7 @@
 package com.prodjbeats.bridge;
 
 import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Map;
@@ -23,8 +24,11 @@ final class BeatLinkAdapter {
                     503,
                     "beat-link jars not found; add them to apps/bridge/lib before using hardware"
             ));
+        } catch (InvocationTargetException ex) {
+            Throwable cause = ex.getCause() == null ? ex : ex.getCause();
+            broadcaster.publish(CanonicalEvent.error("Unable to start beat-link: " + describe(cause)));
         } catch (ReflectiveOperationException ex) {
-            broadcaster.publish(CanonicalEvent.error("Unable to start beat-link: " + ex.getMessage()));
+            broadcaster.publish(CanonicalEvent.error("Unable to start beat-link: " + describe(ex)));
         }
     }
 
@@ -63,10 +67,14 @@ final class BeatLinkAdapter {
     ) throws ReflectiveOperationException {
         Class<?> listenerClass = Class.forName(listenerClassName);
         InvocationHandler invocationHandler = (proxy, method, args) -> {
+            if (method.getDeclaringClass().equals(Object.class)) {
+                return handleObjectMethod(proxy, method, args);
+            }
+
             if (args != null && args.length == 1 && method.getReturnType().equals(Void.TYPE)) {
                 handler.handle(method, args[0]);
             }
-            return null;
+            return defaultValue(method.getReturnType());
         };
         Object listener = Proxy.newProxyInstance(
                 listenerClass.getClassLoader(),
@@ -162,6 +170,54 @@ final class BeatLinkAdapter {
             } catch (ReflectiveOperationException | RuntimeException ignored) {
                 // Try the next likely beat-link accessor name.
             }
+        }
+        return null;
+    }
+
+    private String describe(Throwable throwable) {
+        String message = throwable.getMessage();
+        if (message == null || message.isBlank()) {
+            return throwable.getClass().getName();
+        }
+        return throwable.getClass().getName() + ": " + message;
+    }
+
+    private Object handleObjectMethod(Object proxy, Method method, Object[] args) {
+        return switch (method.getName()) {
+            case "hashCode" -> System.identityHashCode(proxy);
+            case "equals" -> proxy == args[0];
+            case "toString" -> "ProDJ Beats beat-link listener proxy";
+            default -> defaultValue(method.getReturnType());
+        };
+    }
+
+    private Object defaultValue(Class<?> returnType) {
+        if (!returnType.isPrimitive() || returnType.equals(Void.TYPE)) {
+            return null;
+        }
+        if (returnType.equals(Boolean.TYPE)) {
+            return false;
+        }
+        if (returnType.equals(Character.TYPE)) {
+            return '\0';
+        }
+        if (returnType.equals(Byte.TYPE)) {
+            return (byte) 0;
+        }
+        if (returnType.equals(Short.TYPE)) {
+            return (short) 0;
+        }
+        if (returnType.equals(Integer.TYPE)) {
+            return 0;
+        }
+        if (returnType.equals(Long.TYPE)) {
+            return 0L;
+        }
+        if (returnType.equals(Float.TYPE)) {
+            return 0.0f;
+        }
+        if (returnType.equals(Double.TYPE)) {
+            return 0.0d;
         }
         return null;
     }

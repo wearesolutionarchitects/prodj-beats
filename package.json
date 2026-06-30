@@ -10,6 +10,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "check": "astro check",
+    "bridge:deps": "node scripts/bridge-deps.mjs",
     "bridge:build": "node scripts/bridge-build.mjs",
     "bridge:run": "node scripts/bridge-run.mjs",
     "test": "node --test --import tsx src/**/*.test.ts",

@@ -65,6 +65,7 @@ npm run test
 npm run check
 npm run fixture:replay
 npm run build
+npm run bridge:deps
 npm run bridge:build
 ```
 
@@ -74,9 +75,9 @@ Run the Java bridge:
 npm run bridge:run
 ```
 
-`npm run bridge:run` starts the local WebSocket server. Place the `beat-link`
-runtime jars and their dependencies in `apps/bridge/lib/` before connecting
-real ProDJ Link hardware. JAR files are intentionally ignored and not committed.
+`npm run bridge:deps` downloads the `beat-link` runtime jars and their
+dependencies into `apps/bridge/lib/`. `npm run bridge:run` starts the local
+WebSocket server. JAR files are intentionally ignored and not committed.
 
 ## Development Principles
 
