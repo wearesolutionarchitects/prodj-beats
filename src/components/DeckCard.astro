@@ -48,7 +48,11 @@ const phraseTotal = deck.structure?.phrases.reduce((sum, phrase) => sum + phrase
       </div>
       <div>
         <dt>Beat</dt>
-        <dd>{deck.beat?.beat ?? '-'}</dd>
+        <dd>{deck.beat?.beatNumber ?? deck.beat?.beat ?? '-'}</dd>
+      </div>
+      <div>
+        <dt>Phrase</dt>
+        <dd>{deck.beat?.phrase?.kind ?? '-'}</dd>
       </div>
     </dl>
   </div>

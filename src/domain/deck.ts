@@ -11,8 +11,10 @@ export interface Device {
 
 export interface Beat {
   beat: number;
+  beatNumber: number | null;
   master: boolean | null;
   onAir: boolean | null;
+  phrase: CurrentPhrase | null;
   player: PlayerId | null;
   tempo: number | null;
   updatedAt: number;
@@ -33,6 +35,10 @@ export interface Phrase {
   beat: number;
   beats: number;
   kind: string;
+}
+
+export interface CurrentPhrase extends Phrase {
+  progressBeats: number | null;
 }
 
 export interface Structure {
@@ -80,8 +86,15 @@ export class Deck {
   updateBeat(event: BeatEvent): void {
     this.state.beat = {
       beat: event.payload.beat,
+      beatNumber: event.payload.beatNumber ?? null,
       master: event.payload.master ?? null,
       onAir: event.payload.onAir ?? event.payload.onair ?? null,
+      phrase: event.payload.phrase
+        ? {
+            ...event.payload.phrase,
+            progressBeats: event.payload.phrase.progressBeats ?? null
+          }
+        : null,
       player: event.payload.player ?? null,
       tempo: event.payload.tempo ?? null,
       updatedAt: event.ms

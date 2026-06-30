@@ -20,9 +20,19 @@ export const beatEventSchema = payloadEnvelopeSchema.extend({
   type: z.literal('beat'),
   payload: z.object({
     beat: z.number().int().nonnegative(),
+    beatNumber: z.number().int().nonnegative().nullable().optional(),
     master: z.boolean().nullable().optional(),
     onAir: z.boolean().nullable().optional(),
     onair: z.boolean().nullable().optional(),
+    phrase: z
+      .object({
+        beat: z.number().int().nonnegative(),
+        beats: z.number().int().nonnegative(),
+        kind: z.string(),
+        progressBeats: z.number().int().nonnegative().optional()
+      })
+      .nullable()
+      .optional(),
     player: z.number().int().nonnegative().optional(),
     tempo: z.number().nullable().optional()
   })
