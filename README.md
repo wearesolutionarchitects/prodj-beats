@@ -9,6 +9,11 @@ The current project is a greenfield Astro baseline. Python, Flask and native
 runtime binaries from the earlier prototype are intentionally not part of this
 codebase.
 
+## Local Development
+
+Run `npm run dev` and open `http://localhost:4325`. The dev server uses a fixed
+port and fails if it is occupied instead of moving to another project’s port.
+
 ## Current Scope
 
 - Astro SPA with Preact integration.
