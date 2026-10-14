@@ -181,6 +181,31 @@ Fixture replay → shared parser and session → Astro / Preact UI
 | `src/components/`, `src/styles/` | Oberfläche / User interface |
 | `scripts/` | Entwicklungs-, Build- und Testbefehle / Development, build and test commands |
 
+## Besonderer Dank / Special Thanks
+
+Dieses Projekt profitiert von offenen Bibliotheken, öffentlich dokumentierten
+Protokollen und dem Austausch in der DJ- und Entwicklergemeinschaft.
+Vielen Dank an die Menschen und Projekte, die diese Arbeit ermöglichen und inspirieren.
+
+This project benefits from open libraries, publicly documented protocols and
+knowledge shared by the DJ and developer communities. Thank you to the people
+and projects that make this work possible and inspire its development.
+
+- [Deep Symmetry / beat-link](https://github.com/Deep-Symmetry/beat-link) –
+  die Java-Bibliothek unserer Bridge / the Java library powering our bridge.
+- [DJ Link Ecosystem Analysis](https://djl-analysis.deepsymmetry.org/) –
+  öffentliche Protokollanalyse / public protocol research.
+- [chrisle / rbxport](https://github.com/chrisle/rbxport) –
+  Inspiration und Architekturimpulse / inspiration and architectural ideas.
+- [evanpurkhiser / prolink-connect](https://github.com/evanpurkhiser/prolink-connect) –
+  offene ProDJ-Link-Implementierung / an open ProDJ Link implementation.
+
+Special thanks to **evanpurkhiser, Maddix, Morgan Page, nichi, profbx,
+Sean Tyas, shiz, syl, trancejesus, xorbxbx, and [AlphaTheta](https://alphatheta.com/)**.
+
+Die Danksagung stellt keine offizielle Beteiligung oder Unterstützung dar.
+These acknowledgements do not imply official involvement or endorsement.
+
 ## Lizenz / License
 
 [MIT](LICENSE). Abhängigkeiten unterliegen ihren jeweiligen Lizenzen.
