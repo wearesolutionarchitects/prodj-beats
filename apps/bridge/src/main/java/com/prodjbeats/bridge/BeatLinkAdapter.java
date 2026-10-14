@@ -54,6 +54,7 @@ final class BeatLinkAdapter implements AutoCloseable {
                 servicesReady = false;
                 Object devices = firstValue(singleton("org.deepsymmetry.beatlink.DeviceFinder"), "getCurrentDevices");
                 if (!(devices instanceof Collection<?> found) || found.isEmpty()) return;
+                configurePlayerNumber(virtualCdj);
                 if (!startService(virtualCdj)) {
                     broadcaster.publish(CanonicalEvent.sys(503, "VirtualCdj could not start; retrying"));
                     return;
@@ -63,6 +64,11 @@ final class BeatLinkAdapter implements AutoCloseable {
                 startMetadataServices();
                 invokeIfPresent(singleton("org.deepsymmetry.beatlink.data.TimeFinder"), "start");
                 servicesReady = true;
+                int number = intValue(virtualCdj, "getDeviceNumber");
+                broadcaster.publish(CanonicalEvent.sys(200, "ProDJ Link registration: player " + number +
+                        ", standard player number " + (number >= 1 && number <= 4 ? "selected" : "unavailable (fallback)") +
+                        ", own status sending=" + booleanValue(virtualCdj, "isSendingStatus") +
+                        ", address=" + stringValue(virtualCdj, "getLocalAddress")));
                 broadcaster.publish(CanonicalEvent.sys(200, "beat-link status and metadata services started"));
             }
         } catch (ReflectiveOperationException | RuntimeException ex) {
@@ -109,6 +115,14 @@ final class BeatLinkAdapter implements AutoCloseable {
         if (!source.equals(reference)) return null;
         long time = ((Number) finder.getClass().getMethod("getTimeFor", int.class).invoke(finder, player)).longValue();
         return time >= 0 ? time : null;
+    }
+
+    // Leave discovery, conflict handling and fallback to beat-link; never hard-code deck 3 or 4.
+    static void configurePlayerNumber(Object virtualCdj) throws ReflectiveOperationException {
+        if (Boolean.TRUE.equals(virtualCdj.getClass().getMethod("isRunning").invoke(virtualCdj))) return;
+        virtualCdj.getClass().getMethod("setUseStandardPlayerNumber", boolean.class).invoke(virtualCdj, true);
+        virtualCdj.getClass().getMethod("setDeviceNumber", byte.class).invoke(virtualCdj, (byte) 0);
+        // No setSendingStatus(true): we remain a monitor, without participating in tempo control.
     }
 
     // Some beat-link services return false instead of throwing when startup fails.

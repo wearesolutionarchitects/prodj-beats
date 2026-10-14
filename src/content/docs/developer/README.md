@@ -234,3 +234,24 @@ This test opens no sockets and does not establish live XDJ-XZ packet reception.
 A passive capture on the connected interface is needed to distinguish packets
 not sent from packets rejected before listener delivery; macOS requires BPF
 capture permissions (normally `sudo tcpdump`).
+
+### Standard player number comparison
+
+Before starting `VirtualCdj`, the bridge enables `setUseStandardPlayerNumber(true)`
+and resets the requested device number to `0` (automatic allocation). beat-link
+observes existing announcements, skips occupied numbers, and handles the claim
+protocol. No fixed deck number is assigned: with decks 1 and 2 present, the
+expected choice is 3 unless the mixer assigns another channel. If 1–4 are all
+occupied, beat-link may choose a free nonstandard number; the registration log
+marks this fallback, so it is not mistaken for a successful standard-number test.
+
+The bridge does not enable its own status sending, sync, or tempo-master control.
+The registration diagnostic reports the actual number, local address and
+`isSendingStatus()` value. Changes require the user to restart the combined
+`npm run dev` command in VS Code. Hardware reception of mixer status remains to
+be verified after restart; number selection alone is not evidence of support.
+
+Regression tests exercise the installed beat-link allocator with synthetic
+announcements: occupied 1/2, occupied 1/2/3, all standard numbers occupied, and
+all candidate numbers occupied. No discovery or virtual-player service is
+started, and no socket is bound or used to send traffic.

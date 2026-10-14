@@ -6,9 +6,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/** Standalone tests: no hardware, runtime JARs or test framework required. */
+/** Standalone tests using installed beat-link JARs; no hardware or network services required. */
 public final class BridgeRegressionTest {
     public static void main(String[] args) throws Exception {
+        BeatLinkAdapter.configurePlayerNumber(new RunningCdj());
+        checkStandardNumberSelection();
         var service = new DelayedService();
         check(!BeatLinkAdapter.startService(service), "false startup must not be reported as success");
         check(BeatLinkAdapter.startService(service), "startup can be retried after a late device appears");
@@ -78,6 +80,78 @@ public final class BridgeRegressionTest {
         System.out.println("Bridge regression checks passed.");
     }
 
+    /** Exercise the actual beat-link allocator against occupied numbers, without starting its services. */
+    private static void checkStandardNumberSelection() throws Exception {
+        Class<?> cdjType = Class.forName("org.deepsymmetry.beatlink.VirtualCdj");
+        Object cdj = cdjType.getMethod("getInstance").invoke(null);
+        Class<?> finderType = Class.forName("org.deepsymmetry.beatlink.DeviceFinder");
+        Object finder = finderType.getMethod("getInstance").invoke(null);
+        java.lang.reflect.Field deviceField = finderType.getDeclaredField("devices");
+        deviceField.setAccessible(true);
+        @SuppressWarnings("unchecked") Map<Object, Object> devices = (Map<Object, Object>) deviceField.get(finder);
+        java.lang.reflect.Field socketField = finderType.getDeclaredField("socket");
+        socketField.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        var socket = (java.util.concurrent.atomic.AtomicReference<java.net.DatagramSocket>) socketField.get(finder);
+        // isRunning checks presence only. A CLOSED, never-bound socket lets discovery expose fixtures.
+        // No bind, receiver, announcements or traffic are started by this test.
+        var closedSocket = new java.net.DatagramSocket((java.net.SocketAddress) null);
+        closedSocket.close();
+        java.lang.reflect.Field claimField = cdjType.getDeclaredField("claimingNumber");
+        claimField.setAccessible(true);
+        var claim = (java.util.concurrent.atomic.AtomicInteger) claimField.get(cdj);
+        Method select = cdjType.getDeclaredMethod("selfAssignDeviceNumber");
+        select.setAccessible(true);
+        Class<?> announcementType = Class.forName("org.deepsymmetry.beatlink.DeviceAnnouncement");
+        Class<?> referenceType = Class.forName("org.deepsymmetry.beatlink.DeviceReference");
+        Method reference = referenceType.getMethod("getDeviceReference", announcementType);
+        java.lang.reflect.Field firstTimeField = finderType.getDeclaredField("firstDeviceTime");
+        firstTimeField.setAccessible(true);
+        var firstTime = (java.util.concurrent.atomic.AtomicLong) firstTimeField.get(null);
+        long previousFirstTime = firstTime.get();
+        try {
+            firstTime.set(System.currentTimeMillis() - 5000); // Discovery's observation window has elapsed.
+            socket.set(closedSocket);
+            for (int[] occupied : new int[][] { {1, 2, 33}, {1, 2, 3, 33}, {1, 2, 3, 4, 33} }) {
+                devices.clear();
+                for (int number : occupied) {
+                    byte[] bytes = new byte[54];
+                    bytes[36] = (byte) number;
+                    Object announcement = announcementType.getConstructor(java.net.DatagramPacket.class).newInstance(
+                            new java.net.DatagramPacket(bytes, bytes.length, java.net.InetAddress.getLoopbackAddress(), 50000));
+                    devices.put(reference.invoke(null, announcement), announcement);
+                }
+                BeatLinkAdapter.configurePlayerNumber(cdj);
+                check(Boolean.TRUE.equals(cdjType.getMethod("getUseStandardPlayerNumber").invoke(cdj)), "prefer standard number");
+                check(((Number) cdjType.getMethod("getDeviceNumber").invoke(cdj)).intValue() == 0, "automatic allocation, no fixed deck number");
+                claim.set(0);
+                check(Boolean.TRUE.equals(select.invoke(cdj)), "free number can be allocated");
+                int expected = occupied.length == 3 ? 3 : occupied.length == 4 ? 4 : 5;
+                check(claim.get() == expected, "occupied numbers skipped, safe nonstandard fallback if 1-4 occupied");
+                check(Boolean.FALSE.equals(cdjType.getMethod("isSendingStatus").invoke(cdj)), "own status sending remains off");
+            }
+            // No candidate remains: the allocator must fail rather than reuse an occupied number.
+            for (int number = 1; number <= 15; number++) {
+                byte[] bytes = new byte[54];
+                bytes[36] = (byte) number;
+                Object announcement = announcementType.getConstructor(java.net.DatagramPacket.class).newInstance(
+                        new java.net.DatagramPacket(bytes, bytes.length, java.net.InetAddress.getLoopbackAddress(), 50000));
+                devices.put(reference.invoke(null, announcement), announcement);
+            }
+            claim.set(0);
+            check(Boolean.FALSE.equals(select.invoke(cdj)), "exhausted numbers are never reused");
+        } finally {
+            devices.clear();
+            socket.set(null);
+            firstTime.set(previousFirstTime);
+            claim.set(0);
+            cdjType.getMethod("setUseStandardPlayerNumber", boolean.class).invoke(cdj, false);
+            cdjType.getMethod("setDeviceNumber", byte.class).invoke(cdj, (byte) 0);
+        }
+        check(Boolean.FALSE.equals(cdjType.getMethod("isRunning").invoke(cdj)), "no virtual CDJ started");
+        check(Boolean.FALSE.equals(finderType.getMethod("isRunning").invoke(finder)), "no discovery service started");
+    }
+
     /** Exercise beat-link's real packet decoder and our registered listener, without opening sockets. */
     private static void checkRealMixerDecoder(BeatLinkAdapter adapter, RecordingSink sink) throws Exception {
         Class<?> cdjType = Class.forName("org.deepsymmetry.beatlink.VirtualCdj");
@@ -133,6 +207,12 @@ public final class BridgeRegressionTest {
                 "diagnostic distinguishes announcements from decoded status");
         adapter.reportMissingStatus(30000);
         check(sink.messages.size() == before + 1, "missing-status diagnostic is not repeated");
+    }
+
+    public static final class RunningCdj {
+        public boolean isRunning() { return true; }
+        public void setUseStandardPlayerNumber(boolean value) { throw new AssertionError("must not reconfigure a running device"); }
+        public void setDeviceNumber(byte value) { throw new AssertionError("must not change a running device number"); }
     }
 
     public static final class FakeMixer {
