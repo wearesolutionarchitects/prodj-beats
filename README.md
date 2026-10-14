@@ -10,6 +10,14 @@ Geräteadressen sind für diesen Screenshot ausgeblendet.*
 *Live XDJ-XZ data in the browser: two decks and the tempo master at a glance.
 Device addresses are hidden in this screenshot.*
 
+![Pioneer DJ XDJ-XZ im Einsatz / Pioneer DJ XDJ-XZ in use](docs/images/xdj-xz-hardware.jpg)
+
+*Die Hardware hinter den Live-Daten: der XDJ-XZ im Einsatz. ProDJ Beats ergänzt
+sein eingebautes Display um eine größere Browseransicht.*
+
+*The hardware behind the live data: an XDJ-XZ in use. ProDJ Beats complements
+its built-in display with a larger browser view.*
+
 ## Deutsch
 
 ProDJ Beats ergänzt vorhandene DJ-Hardware um eine größere Live-Anzeige im
