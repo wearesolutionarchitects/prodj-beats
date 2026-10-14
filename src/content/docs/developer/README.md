@@ -176,3 +176,20 @@ terminal. `Ctrl+C`, Java startup failure, or bridge exit closes both services.
 The shared `bridge-command.mjs` performs the build and classpath preparation;
 `bridge:run` is only for standalone diagnostics. Agents reuse the user's
 services and must not start their own instances for verification.
+
+
+## Playback time
+
+The optional v2 `position` event carries `{ player, source, positionMs }`.
+The bridge starts beat-link `TimeFinder` and samples its `getTimeFor(player)`
+position every 250 ms, including during pauses. It verifies the position's
+beat-grid source against the loaded track before publishing. Unavailable
+positions are `null`; time is never derived from current BPM or wall time in
+the browser. Position is cleared with the track and retained in reconnect
+snapshots. Live and replay use the same position reducer.
+
+Playing time displays track position as `m:ss`. Remaining time is track duration
+minus position, clamped at zero. The remaining value turns red at exactly
+20,000 ms or less; unknown duration/position shows `-` without a warning.
+This is remaining track content, not a pitch-adjusted wall-clock countdown.
+The replay fixtures include a seek to 20 seconds before the end.

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { connectedDevices, ProDjLinkSession, type SessionSnapshot } from '../application/session';
+import { playbackTime, formatTime } from '../domain/playback-time';
 import type { DeckState } from '../domain/deck';
 
 import { observeSession, type EventSource, type SourceStatus } from '../application/event-source';
@@ -53,6 +54,7 @@ export default function LiveDeckMonitor({ source }: { source?: EventSource }) {
 }
 
 function DeckCardView({ deck }: { deck: DeckState }) {
+  const time = playbackTime(deck);
   const phraseTotal = deck.structure?.phrases.reduce((sum, phrase) => sum + phrase.beats, 0) ?? 0;
 
   return (
@@ -85,7 +87,9 @@ function DeckCardView({ deck }: { deck: DeckState }) {
           <Fact label="Track beat" value={deck.beat?.trackBeat ?? '-'} />
           <Fact label="Beat in bar" value={deck.beat?.beatWithinBar ?? '-'} />
           <Fact label="Phrase" value={deck.beat?.phrase?.kind ?? '-'} />
-          <Fact label="Progress" value={phraseProgress(deck)} />
+          <Fact label="Progress" value={phraseProgress(deck)} timing />
+          <Fact label="Playing time" value={formatTime(time.playingMs)} timing />
+          <Fact label="Remaining time" value={formatTime(time.remainingMs)} timing warning={time.ending} />
         </dl>
       </div>
 
@@ -102,11 +106,11 @@ function DeckCardView({ deck }: { deck: DeckState }) {
   );
 }
 
-function Fact({ label, value }: { label: string; value: string | number }) {
+function Fact({ label, value, timing = false, warning = false }: { label: string; value: string | number; timing?: boolean; warning?: boolean }) {
   return (
-    <div>
+    <div class={timing ? 'fact--timing' : undefined}>
       <dt>{label}</dt>
-      <dd>{value}</dd>
+      <dd class={warning ? 'time--ending' : undefined}>{value}</dd>
     </div>
   );
 }

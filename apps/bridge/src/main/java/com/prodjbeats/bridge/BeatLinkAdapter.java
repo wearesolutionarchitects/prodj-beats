@@ -36,6 +36,7 @@ final class BeatLinkAdapter implements AutoCloseable {
     void start() {
         broadcaster.publish(CanonicalEvent.sys(202, "Waiting for players, status and metadata services"));
         startup.scheduleWithFixedDelay(this::startServices, 0, 5, TimeUnit.SECONDS);
+        startup.scheduleWithFixedDelay(this::publishPositions, 0, 250, TimeUnit.MILLISECONDS);
     }
 
     private void startServices() {
@@ -54,12 +55,39 @@ final class BeatLinkAdapter implements AutoCloseable {
             }
             if (!servicesReady) {
                 startMetadataServices();
+                invokeIfPresent(singleton("org.deepsymmetry.beatlink.data.TimeFinder"), "start");
                 servicesReady = true;
                 broadcaster.publish(CanonicalEvent.sys(200, "beat-link status and metadata services started"));
             }
         } catch (ReflectiveOperationException | RuntimeException ex) {
             reportStartupError(ex);
         }
+    }
+
+    private synchronized void publishPositions() {
+        if (!servicesReady) return;
+        try {
+            Object finder = singleton("org.deepsymmetry.beatlink.data.TimeFinder");
+            for (Map.Entry<Integer, Map<String, Object>> entry : sourcesByPlayer.entrySet()) {
+                int player = entry.getKey();
+                Long milliseconds = trackTime(finder, player, entry.getValue());
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("player", player);
+                payload.put("source", entry.getValue());
+                payload.put("positionMs", milliseconds);
+                broadcaster.publish(new CanonicalEvent("position", 2, System.currentTimeMillis(), payload));
+            }
+        } catch (ReflectiveOperationException | RuntimeException ex) {
+            broadcaster.publish(CanonicalEvent.error("Unable to read track position: " + describe(ex)));
+        }
+    }
+
+    private Long trackTime(Object finder, int player, Map<String, Object> source) throws ReflectiveOperationException {
+        Object position = finder.getClass().getMethod("getLatestPositionFor", int.class).invoke(finder, player);
+        Map<String, Object> reference = sourcePayload(fieldValue(fieldValue(position, "beatGrid"), "dataReference"));
+        if (!source.equals(reference)) return null;
+        long time = ((Number) finder.getClass().getMethod("getTimeFor", int.class).invoke(finder, player)).longValue();
+        return time >= 0 ? time : null;
     }
 
     // Some beat-link services return false instead of throwing when startup fails.

@@ -57,6 +57,15 @@ export const trackEventSchema = payloadEnvelopeSchema.extend({
   })
 });
 
+export const positionEventSchema = payloadEnvelopeSchema.extend({
+  type: z.literal('position'),
+  payload: z.object({
+    player: z.number().int().positive(),
+    source: sourceSchema,
+    positionMs: z.number().int().nonnegative().nullable()
+  })
+});
+
 export const phraseSchema = z.object({
   startBeat: z.number().int().positive(),
   beats: z.number().int().nonnegative(),
@@ -110,6 +119,7 @@ export const prodjLinkEventSchema = z.discriminatedUnion('type', [
   trackEventSchema,
   structureEventSchema,
   artEventSchema,
+  positionEventSchema,
   sysEventSchema,
   errorEventSchema,
   ignoredEventSchema
@@ -122,6 +132,7 @@ export type DeviceEvent = z.infer<typeof deviceEventSchema>;
 export type BeatEvent = z.infer<typeof beatEventSchema>;
 export type TrackEvent = z.infer<typeof trackEventSchema>;
 export type StructureEvent = z.infer<typeof structureEventSchema>;
+export type PositionEvent = z.infer<typeof positionEventSchema>;
 export type ArtEvent = z.infer<typeof artEventSchema>;
 export type SysEvent = z.infer<typeof sysEventSchema>;
 export type ErrorEvent = z.infer<typeof errorEventSchema>;

@@ -41,6 +41,10 @@ export class ProDjLinkSession {
       this.deck(event.payload.player).updateStructure(event);
     }
 
+    if (event.type === 'position') {
+      this.deck(event.payload.player).updatePosition(event);
+    }
+
     if (event.type === 'art') {
       this.deck(event.payload.player).updateArtwork(event);
     }

@@ -82,5 +82,16 @@ export const fixtureEvents: ProDjLinkEvent[] = [
       name: 'CDJ-3000',
       player: 2
     }
+  },
+  {
+    type: 'position',
+    version: 2,
+    ms: 1725728641000,
+    // A seek near the end demonstrates the remaining-time warning in replay.
+    payload: {
+      player: 1,
+      source: { id: 7216, player: 1, slot: 'SD_SLOT' },
+      positionMs: 295000
+    }
   }
 ];

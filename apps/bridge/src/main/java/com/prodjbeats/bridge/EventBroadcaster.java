@@ -31,7 +31,7 @@ final class EventBroadcaster implements AutoCloseable {
         try {
             long now = System.currentTimeMillis();
             for (Map<String, CanonicalEvent> deck : latest.values()) {
-                for (String type : List.of("device", "track", "structure", "art", "beat")) {
+                for (String type : List.of("device", "track", "structure", "art", "beat", "position")) {
                     CanonicalEvent event = deck.get(type);
                     if (event != null) sink.send(new CanonicalEvent(type, 2, now, event.payload()).toJson());
                 }
@@ -54,7 +54,7 @@ final class EventBroadcaster implements AutoCloseable {
             if ((event.type().equals("device") && Boolean.FALSE.equals(event.payload().get("active"))) ||
                     (event.type().equals("track") && (event.payload().get("source") == null || track == null ||
                     !java.util.Objects.equals(track.payload().get("source"), event.payload().get("source"))))) {
-                deck.keySet().removeAll(List.of("track", "structure", "art", "beat"));
+                deck.keySet().removeAll(List.of("track", "structure", "art", "beat", "position"));
             }
             deck.put(event.type(), event);
         }

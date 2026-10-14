@@ -18,6 +18,10 @@ public final class BridgeRegressionTest {
             var sink = new RecordingSink();
             broadcaster.add(sink);
             var adapter = new BeatLinkAdapter(broadcaster);
+            Method trackTime = BeatLinkAdapter.class.getDeclaredMethod("trackTime", Object.class, int.class, Map.class);
+            trackTime.setAccessible(true);
+            check(Long.valueOf(12345).equals(trackTime.invoke(adapter, new FakeTimeFinder(), 1, source(10))), "track time retains milliseconds");
+            check(trackTime.invoke(adapter, new FakeTimeFinder(), 1, source(11)) == null, "previous track position is rejected");
             Method announcementHandler = BeatLinkAdapter.class.getDeclaredMethod("handleDeviceAnnouncement", Method.class, Object.class);
             announcementHandler.setAccessible(true);
             announcementHandler.invoke(adapter, FakeAnnouncement.class.getMethod("deviceFound"), new FakeAnnouncement());
@@ -28,11 +32,15 @@ public final class BridgeRegressionTest {
             invoke(adapter, "handleTrackMetadata", new MetadataUpdate(new Metadata(10)));
             check(sink.messages.getLast().contains("\"id\":10"), "track source retained");
             broadcaster.publish(new CanonicalEvent("art", 2, 1, Map.of("player", 1, "source", source(10), "jpg", "old")));
+            broadcaster.publish(new CanonicalEvent("position", 2, 2, Map.of("player", 1, "source", source(10), "positionMs", 12345)));
+            var positioned = new RecordingSink();
+            broadcaster.add(positioned);
+            check(positioned.messages.stream().anyMatch(message -> message.contains("\"positionMs\":12345")), "reconnect includes position");
             invoke(adapter, "handleTrackMetadata", new MetadataUpdate(new Metadata(11)));
             var reconnect = new RecordingSink();
             broadcaster.add(reconnect);
             check(reconnect.messages.stream().anyMatch(message -> message.contains("\"id\":11")) &&
-                    reconnect.messages.stream().noneMatch(message -> message.contains("\"jpg\":\"old\"") || message.contains("\"type\":\"beat\"")),
+                    reconnect.messages.stream().noneMatch(message -> message.contains("\"jpg\":\"old\"") || message.contains("\"type\":\"beat\"") || message.contains("\"type\":\"position\"")),
                     "reconnect snapshot excludes previous track artwork and beat");
             invoke(adapter, "handleTrackMetadata", new MetadataUpdate(null));
             check(sink.messages.getLast().contains("\"source\":null"), "metadata loss emits explicit clearing event");
@@ -60,6 +68,16 @@ public final class BridgeRegressionTest {
         final List<String> messages = new ArrayList<>();
         public void send(String message) { messages.add(message); }
         public void close() {}
+    }
+    public static final class FakeTimeFinder {
+        public FakePosition getLatestPositionFor(int player) { return new FakePosition(); }
+        public long getTimeFor(int player) { return 12345; }
+    }
+    public static final class FakePosition {
+        public final FakeGrid beatGrid = new FakeGrid();
+    }
+    public static final class FakeGrid {
+        public final Reference dataReference = new Reference(10);
     }
     public static final class FakeAnnouncement {
         public void deviceFound() {}
