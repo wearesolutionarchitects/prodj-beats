@@ -16,13 +16,25 @@ port and fails if it is occupied instead of moving to another project’s port.
 The server listens on the local network. On another device in the same network,
 open `http://macstudio.local:4325/?source=replay` (or use the Mac Studio's LAN IP).
 
-Astro can keep a dev server running in the background. If `npm run dev` reports
-an existing server, use its URL or restart it with:
+Run the server in your VS Code terminal to keep Vite output visible there.
+Coding agents must reuse that server rather than start background instances.
+If an earlier background server is still running, stop it once and then start
+in the same VS Code terminal:
 
 ```bash
 npm run dev -- stop
 npm run dev
 ```
+
+To inspect existing background-server logs without starting another server:
+
+```bash
+npm run dev -- logs --follow
+```
+
+Project rules for Copilot and Codex are in
+[.github/copilot-instructions.md](.github/copilot-instructions.md), also referenced
+by [AGENTS.md](AGENTS.md).
 
 For live hardware data, also run `npm run bridge:run` on the Mac Studio. The
 browser connects to `/events` on the UI host; the dev server proxies WebSocket
