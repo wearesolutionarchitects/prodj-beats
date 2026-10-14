@@ -352,3 +352,12 @@ h2 {
 .master-beats { display: flex; gap: 0.5rem; }
 .master-beat { padding: 0.3rem 0.7rem; border: 1px solid var(--border, #39434c); border-radius: 0.35rem; }
 .master-beat--active { color: #07120e; background: #3ddc97; border-color: #3ddc97; }
+
+.connection-diagnostics summary { cursor: pointer; font-weight: 700; }
+.connection-diagnostics .facts { margin-top: 1rem; }
+.diagnostic-reception { overflow-x: auto; margin-top: 1rem; }
+.diagnostic-reception table { border-collapse: collapse; width: 100%; font-size: 0.75rem; }
+.diagnostic-reception caption { text-align: left; margin-bottom: 0.5rem; }
+.diagnostic-reception th, .diagnostic-reception td { padding: 0.4rem; text-align: left; border-bottom: 1px solid #39434c; }
+.diagnostic-warning { color: #fac46b; font-size: 0.85rem; }
+.diagnostic-interfaces { padding-left: 1.2rem; font-size: 0.8rem; overflow-wrap: anywhere; }

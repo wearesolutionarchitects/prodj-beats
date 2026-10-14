@@ -71,6 +71,21 @@ export const masterEventSchema = payloadEnvelopeSchema.extend({
 });
 export type MasterEvent = z.infer<typeof masterEventSchema>;
 
+export const diagnosticsEventSchema = payloadEnvelopeSchema.extend({
+  type: z.literal('diagnostics'),
+  payload: z.object({
+    running: z.boolean(),
+    address: z.string().ip().nullable(),
+    interfaceName: z.string().nullable(),
+    interfaceLabel: z.string().nullable(),
+    player: z.number().int().positive().nullable(),
+    sendingStatus: z.boolean().nullable(),
+    interfaces: z.array(z.object({ name: z.string(), label: z.string(), addresses: z.array(z.string().ip()) })),
+    statuses: z.array(z.object({ player: z.number().int().positive(), receivedAt: z.number().int().nonnegative() }))
+  })
+});
+export type DiagnosticsEvent = z.infer<typeof diagnosticsEventSchema>;
+
 export const cueSchema = z.object({
   comment: z.string().default(''),
   ms: z.number().int().nonnegative()
@@ -159,6 +174,7 @@ export const prodjLinkEventSchema = z.discriminatedUnion('type', [
   deviceEventSchema,
   mixerEventSchema,
   masterEventSchema,
+  diagnosticsEventSchema,
   onAirEventSchema,
   beatEventSchema,
   trackEventSchema,

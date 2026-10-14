@@ -1,6 +1,13 @@
 import type { ProDjLinkEvent } from '../domain/events';
 
 export const fixtureEvents: ProDjLinkEvent[] = [
+  // Synthetic configuration for the demo; documentation addresses, no local network data.
+  { type: 'diagnostics', version: 2, ms: 1725728557000, payload: {
+    running: true, address: '203.0.113.20', interfaceName: 'demo0', interfaceLabel: 'Example adapter',
+    player: 3, sendingStatus: false,
+    interfaces: [{ name: 'demo0', label: 'Example adapter', addresses: ['203.0.113.20'] }],
+    statuses: [{ player: 1, receivedAt: 1725728557000 }, { player: 2, receivedAt: 1725728557000 }]
+  } },
   { type: 'master', version: 2, ms: 1725728557000, payload: {
     player: 1, tempo: 129.92, bpm: 128, pitchPercent: 1.5, beatWithinBar: 1,
     synced: true, bpmOnlySynced: false, handoff: null

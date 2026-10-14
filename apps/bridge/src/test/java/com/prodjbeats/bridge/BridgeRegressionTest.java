@@ -262,6 +262,17 @@ public final class BridgeRegressionTest {
         adapter.publishMaster(new FakeMaster(), null, null);
         check(sink.messages.getLast().contains("\"pitchPercent\":4.999") && sink.messages.getLast().contains("\"handoff\":2"), "master pitch and handoff mapped");
         check(sink.messages.getLast().contains("\"beatWithinBar\":4") && sink.messages.getLast().contains("\"bpmOnlySynced\":true"), "master beat and sync mapped");
+        adapter.publishDiagnostics(new FakeDiagnosticCdj());
+        check(sink.messages.getLast().contains("\"type\":\"diagnostics\"") &&
+                sink.messages.getLast().contains("\"address\":\"203.0.113.20\"") &&
+                sink.messages.getLast().contains("\"player\":3") &&
+                sink.messages.getLast().contains("\"sendingStatus\":false"), "structured registration diagnostics mapped");
+        check(sink.messages.getLast().contains("\"receivedAt\":") && sink.messages.getLast().contains("\"player\":33"),
+                "decoded status reception included");
+        var diagnosticReconnect = new RecordingSink();
+        broadcasterFor(adapter).add(diagnosticReconnect);
+        check(diagnosticReconnect.messages.stream().anyMatch(message -> message.contains("\"type\":\"diagnostics\"")),
+                "diagnostics cached for reconnect");
         int count = sink.messages.size();
         deliver.invoke(cdj, status);
         check(sink.messages.size() == count + 1, "repeated packets do not flood diagnostic logs");
@@ -297,6 +308,14 @@ public final class BridgeRegressionTest {
         var field = BeatLinkAdapter.class.getDeclaredField("broadcaster");
         field.setAccessible(true);
         return (EventBroadcaster) field.get(adapter);
+    }
+
+    public static final class FakeDiagnosticCdj {
+        public boolean isRunning() { return true; }
+        public java.net.InetAddress getLocalAddress() throws Exception { return java.net.InetAddress.getByName("203.0.113.20"); }
+        public int getDeviceNumber() { return 3; }
+        public boolean isSendingStatus() { return false; }
+        public java.util.List<java.net.NetworkInterface> getMatchingInterfaces() { return java.util.List.of(); }
     }
 
     public static final class FakeMaster {

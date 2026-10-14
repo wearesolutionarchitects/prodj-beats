@@ -1,7 +1,9 @@
+import { ConnectionDiagnostics, type ConnectionSnapshot } from '../domain/connection-diagnostics';
 import { Deck, type DeckState, type PlayerId, type Device } from '../domain/deck';
 import { EventParser, type MasterEvent, type MixerEvent, type OnAirEvent, type ProDjLinkEvent } from '../domain/events';
 
 export interface SessionSnapshot {
+  connection: ConnectionSnapshot;
   decks: DeckState[];
   mixers: MixerEvent[];
   onAir: OnAirEvent | null;
@@ -11,6 +13,7 @@ export interface SessionSnapshot {
 }
 
 export class ProDjLinkSession {
+  private connection = new ConnectionDiagnostics();
   private readonly decks = new Map<PlayerId, Deck>();
   private readonly mixers = new Map<PlayerId, MixerEvent>();
   private onAir: OnAirEvent | null = null;
@@ -32,6 +35,7 @@ export class ProDjLinkSession {
 
   apply(event: ProDjLinkEvent): SessionSnapshot {
     this.lastEvent = event;
+    this.connection.apply(event);
 
     if (event.type === 'master' && event.ms >= this.masterSince) {
       this.master = event;
@@ -100,6 +104,7 @@ export class ProDjLinkSession {
   }
 
   reset(): SessionSnapshot {
+    this.connection = new ConnectionDiagnostics();
     this.decks.clear();
     this.mixers.clear();
     this.onAir = null;
@@ -114,6 +119,7 @@ export class ProDjLinkSession {
   }
 
   disconnect(): SessionSnapshot {
+    this.connection = new ConnectionDiagnostics();
     this.decks.forEach((deck) => deck.disconnect());
     this.mixers.clear();
     this.onAir = null;
@@ -127,6 +133,7 @@ export class ProDjLinkSession {
 
   snapshot(): SessionSnapshot {
     return {
+      connection: this.connection.snapshot(),
       decks: [...this.decks.values()].map((deck) => deck.snapshot()),
       mixers: structuredClone([...this.mixers.values()]),
       onAir: structuredClone(this.onAir),

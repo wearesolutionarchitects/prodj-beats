@@ -17,6 +17,7 @@ final class EventBroadcaster implements AutoCloseable {
     private final BufferedWriter eventLog;
     private CanonicalEvent onAir;
     private CanonicalEvent master;
+    private CanonicalEvent diagnostics;
     private final Map<Integer, Map<String, CanonicalEvent>> latest = new LinkedHashMap<>();
 
     EventBroadcaster(Path eventLogPath) throws IOException {
@@ -38,6 +39,7 @@ final class EventBroadcaster implements AutoCloseable {
                     if (event != null) sink.send(new CanonicalEvent(type, 2, now, event.payload()).toJson());
                 }
             }
+            if (diagnostics != null) sink.send(new CanonicalEvent("diagnostics", 2, now, diagnostics.payload()).toJson());
             if (master != null) sink.send(new CanonicalEvent("master", 2, now, master.payload()).toJson());
             if (onAir != null) sink.send(new CanonicalEvent("onAir", 2, now, onAir.payload()).toJson());
             sinks.add(sink);
@@ -51,13 +53,14 @@ final class EventBroadcaster implements AutoCloseable {
     }
 
     synchronized void publish(CanonicalEvent event) {
+        if (event.type().equals("diagnostics")) diagnostics = event;
         if (event.type().equals("master")) master = event;
         if (event.type().equals("device") && Boolean.FALSE.equals(event.payload().get("active")) &&
                 master != null && java.util.Objects.equals(master.payload().get("player"), event.payload().get("player"))) master = null;
         if (event.type().equals("onAir")) onAir = event;
         if (event.type().equals("device") && Boolean.FALSE.equals(event.payload().get("active"))) onAir = null;
         Object player = event.payload().get("player");
-        if (!event.type().equals("master") && player instanceof Integer number) {
+        if (!event.type().equals("master") && !event.type().equals("diagnostics") && player instanceof Integer number) {
             Map<String, CanonicalEvent> deck = latest.computeIfAbsent(number, ignored -> new LinkedHashMap<>());
             CanonicalEvent track = deck.get("track");
             if ((event.type().equals("device") && Boolean.FALSE.equals(event.payload().get("active"))) ||

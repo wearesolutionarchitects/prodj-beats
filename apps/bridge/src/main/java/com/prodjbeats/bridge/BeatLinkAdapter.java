@@ -6,6 +6,9 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.nio.ByteBuffer;
 import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -29,7 +32,7 @@ final class BeatLinkAdapter implements AutoCloseable {
     private boolean servicesReady;
     private Object currentMaster;
     private final Map<Integer, Long> announcedAt = new HashMap<>();
-    private final Set<Integer> statusReceived = new HashSet<>();
+    private final Map<Integer, Long> statusReceivedAt = new HashMap<>();
     private final Set<String> statusTypesReceived = new HashSet<>();
     private final Set<Integer> missingStatusReported = new HashSet<>();
     private final Map<Integer, Map<String, Object>> sourcesByPlayer = new HashMap<>();
@@ -75,6 +78,9 @@ final class BeatLinkAdapter implements AutoCloseable {
             }
         } catch (ReflectiveOperationException | RuntimeException ex) {
             reportStartupError(ex);
+        } finally {
+            try { publishDiagnostics(singleton("org.deepsymmetry.beatlink.VirtualCdj")); }
+            catch (ReflectiveOperationException | RuntimeException ignored) { /* Startup error already reported. */ }
         }
     }
 
@@ -283,7 +289,7 @@ final class BeatLinkAdapter implements AutoCloseable {
         if (method.getName().toLowerCase().contains("lost")) {
             sourcesByPlayer.remove(player);
             announcedAt.remove(player);
-            statusReceived.remove(player);
+            statusReceivedAt.remove(player);
             missingStatusReported.remove(player);
             statusTypesReceived.removeIf(key -> key.startsWith(player + ":"));
         } else {
@@ -317,7 +323,7 @@ final class BeatLinkAdapter implements AutoCloseable {
         if (status == null) return;
         int player = intValue(status, "getDeviceNumber");
         String type = status.getClass().getSimpleName();
-        statusReceived.add(player);
+        statusReceivedAt.put(player, System.currentTimeMillis());
         if (statusTypesReceived.add(player + ":" + type)) {
             Object bytes = firstValue(status, "getPacketBytes");
             broadcaster.publish(CanonicalEvent.sys(200, "beat-link decoded " + type +
@@ -331,11 +337,40 @@ final class BeatLinkAdapter implements AutoCloseable {
         }
     }
 
+    synchronized void publishDiagnostics(Object virtualCdj) {
+        boolean running = Boolean.TRUE.equals(booleanValue(virtualCdj, "isRunning"));
+        Object local = running ? firstValue(virtualCdj, "getLocalAddress") : null;
+        InetAddress address = local instanceof InetAddress ip ? ip : null;
+        NetworkInterface selected = null;
+        try { if (address != null) selected = NetworkInterface.getByInetAddress(address); }
+        catch (SocketException ignored) { }
+        List<Map<String, Object>> interfaces = new ArrayList<>();
+        Object matching = running ? firstValue(virtualCdj, "getMatchingInterfaces") : null;
+        if (matching instanceof Collection<?> candidates) for (Object candidate : candidates) {
+            if (!(candidate instanceof NetworkInterface network)) continue;
+            interfaces.add(Map.of("name", network.getName(), "label", network.getDisplayName(),
+                    "addresses", network.inetAddresses().map(InetAddress::getHostAddress)
+                            .filter(ip -> !ip.contains(":")).toList()));
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("running", running);
+        payload.put("address", address == null ? null : address.getHostAddress());
+        payload.put("interfaceName", selected == null ? null : selected.getName());
+        payload.put("interfaceLabel", selected == null ? null : selected.getDisplayName());
+        int player = running ? intValue(virtualCdj, "getDeviceNumber") : -1;
+        payload.put("player", player > 0 ? player : null);
+        payload.put("sendingStatus", running ? booleanValue(virtualCdj, "isSendingStatus") : null);
+        payload.put("interfaces", interfaces);
+        payload.put("statuses", statusReceivedAt.entrySet().stream().sorted(Map.Entry.comparingByKey())
+                .map(entry -> Map.of("player", entry.getKey(), "receivedAt", entry.getValue())).toList());
+        broadcaster.publish(new CanonicalEvent("diagnostics", 2, System.currentTimeMillis(), payload));
+    }
+
     synchronized void reportMissingStatus(long now) {
         if (!servicesReady) return;
         for (Map.Entry<Integer, Long> entry : announcedAt.entrySet()) {
             int player = entry.getKey();
-            if (now - entry.getValue() >= 15000 && !statusReceived.contains(player) && missingStatusReported.add(player)) {
+            if (now - entry.getValue() >= 15000 && !statusReceivedAt.containsKey(player) && missingStatusReported.add(player)) {
                 broadcaster.publish(CanonicalEvent.sys(202, "Device " + player +
                         " announced, but no status decoded by beat-link after 15 seconds; " +
                         "this does not prove that no packets were sent"));

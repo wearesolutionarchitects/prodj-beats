@@ -41,6 +41,8 @@ soweit vom Gerät und vom geladenen Track verfügbar:
 - Tempo-Master mit effektivem Tempo, Grund-BPM, Pitch und Sync-Status.
 - Beat-Anzeige 1–4, gemeldete Masterübergaben und On-Air-Kanäle.
 - Verbundene Geräte und deren vom Netzwerk gemeldete Adressen.
+- Aufklappbare Verbindungsdiagnose: Bridge-Adapter, Playernummer, Statussenden
+  und Empfang von Ankündigungen, Status, Beats und Metadaten.
 
 Live-Daten und Fixture-Replay verwenden denselben Eventvertrag und dieselbe
 Zustandsverarbeitung. Replay ermöglicht Entwicklung und Tests ohne DJ-Hardware.
@@ -97,7 +99,10 @@ npm run build
 ```
 
 Die Tests prüfen Eventvalidierung, Zustandswechsel, Live-/Replay-Verarbeitung
-und die Java-Bridge. Erfolgreiche Fixtures ersetzen keine Hardwareprüfung.
+und die Java-Bridge. Anonymisierte Hardware-Aufzeichnungen mit dokumentierter
+Herkunft liegen unter [recordings](src/infrastructure/recordings/README.md).
+Diagnosewerte beschreiben beobachteten Empfang seit Verbindung/Geräterückkehr,
+keine garantierte Aktualität. Erfolgreiche Fixtures ersetzen keine Hardwareprüfung.
 Projektregeln stehen in [AGENTS.md](AGENTS.md) und
 [.github/copilot-instructions.md](.github/copilot-instructions.md).
 
@@ -123,6 +128,8 @@ device and loaded track, the interface shows:
 - Tempo master with effective tempo, base BPM, pitch and sync status.
 - A 1–4 beat indicator, reported master handoffs and on-air channels.
 - Connected devices and their network-reported addresses.
+- Expandable connection diagnostics: bridge adapter, player number, own status
+  sending and reception of announcements, status, beats and metadata.
 
 Live data and fixture replay share the same event contract and state handling.
 Replay supports development and testing without DJ hardware. Unknown values
@@ -176,7 +183,10 @@ npm run build
 ```
 
 Tests cover event validation, state transitions, shared live/replay handling and
-the Java bridge. Passing fixtures do not replace hardware verification.
+the Java bridge. Anonymized hardware recordings and their provenance are documented
+in [recordings](src/infrastructure/recordings/README.md). Diagnostics describe
+observed reception since connection/device return, not guaranteed freshness.
+Passing fixtures do not replace hardware verification.
 See [AGENTS.md](AGENTS.md) and
 [.github/copilot-instructions.md](.github/copilot-instructions.md) for project rules.
 

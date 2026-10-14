@@ -1,3 +1,4 @@
+import ConnectionDiagnostics from './ConnectionDiagnostics';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { connectedDevices, masterTempo, ProDjLinkSession, type SessionSnapshot } from '../application/session';
 import { playbackTime, formatTime } from '../domain/playback-time';
@@ -32,6 +33,7 @@ export default function LiveDeckMonitor({ source }: { source?: EventSource }) {
         {decks.slice(0, 2).map((deck) => <DeckCardView key={deck.player} deck={deck} />)}
         <aside class="mixer-column" aria-label="Mixer">
           <OnAirCard channels={snapshot.onAir?.payload.channels ?? null} snapshot={snapshot} status={status} />
+          <ConnectionDiagnostics connection={snapshot.connection} />
           {mixers.map((event) => (
             <MixerCard key={event.payload.player} event={event} device={snapshot.decks.find((deck) => deck.player === event.payload.player)?.device ?? null} />
           ))}

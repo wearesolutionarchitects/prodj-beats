@@ -1,0 +1,269 @@
+[
+  {
+    "type": "device",
+    "version": 2,
+    "payload": {
+      "active": true,
+      "name": "Controller A",
+      "player": 1,
+      "address": "203.0.113.10"
+    },
+    "ms": 0
+  },
+  {
+    "type": "device",
+    "version": 2,
+    "payload": {
+      "active": true,
+      "name": "Controller A",
+      "player": 2,
+      "address": "203.0.113.10"
+    },
+    "ms": 1
+  },
+  {
+    "type": "device",
+    "version": 2,
+    "payload": {
+      "active": true,
+      "name": "Controller A",
+      "player": 33,
+      "address": "203.0.113.10"
+    },
+    "ms": 2
+  },
+  {
+    "type": "track",
+    "version": 2,
+    "payload": {
+      "cues": [],
+      "duration": 146000,
+      "player": 1,
+      "source": {
+        "id": 1,
+        "player": 1,
+        "slot": "SD_SLOT"
+      },
+      "tempo": 155.38,
+      "title": "Example track 1"
+    },
+    "ms": 6847
+  },
+  {
+    "type": "track",
+    "version": 2,
+    "payload": {
+      "cues": [],
+      "duration": 166000,
+      "player": 2,
+      "source": {
+        "id": 2,
+        "player": 1,
+        "slot": "SD_SLOT"
+      },
+      "tempo": 96.0,
+      "title": "Example track 2"
+    },
+    "ms": 7262
+  },
+  {
+    "type": "beat",
+    "version": 2,
+    "payload": {
+      "beatWithinBar": 2,
+      "trackBeat": 9,
+      "master": false,
+      "onAir": true,
+      "player": 2,
+      "tempo": 93.11993408203125
+    },
+    "ms": 96585
+  },
+  {
+    "type": "onAir",
+    "version": 2,
+    "payload": {
+      "channels": [
+        1,
+        2
+      ]
+    },
+    "ms": 96658
+  },
+  {
+    "type": "master",
+    "version": 2,
+    "payload": {
+      "player": 1,
+      "bpm": 155.38,
+      "tempo": 149.94157552719116,
+      "pitchPercent": -3.500080108642578,
+      "synced": false,
+      "beatWithinBar": 2,
+      "handoff": null,
+      "bpmOnlySynced": false
+    },
+    "ms": 96669
+  },
+  {
+    "type": "beat",
+    "version": 2,
+    "payload": {
+      "beatWithinBar": 2,
+      "trackBeat": 229,
+      "master": true,
+      "onAir": true,
+      "player": 1,
+      "tempo": 149.94157552719116
+    },
+    "ms": 96669
+  },
+  {
+    "type": "beat",
+    "version": 2,
+    "payload": {
+      "beatWithinBar": 3,
+      "trackBeat": 230,
+      "master": true,
+      "onAir": true,
+      "player": 1,
+      "tempo": 149.94157552719116
+    },
+    "ms": 97069
+  },
+  {
+    "type": "beat",
+    "version": 2,
+    "payload": {
+      "beatWithinBar": 3,
+      "trackBeat": 10,
+      "master": false,
+      "onAir": true,
+      "player": 2,
+      "tempo": 93.11993408203125
+    },
+    "ms": 97229
+  },
+  {
+    "type": "beat",
+    "version": 2,
+    "payload": {
+      "beatWithinBar": 4,
+      "trackBeat": 231,
+      "master": true,
+      "onAir": true,
+      "player": 1,
+      "tempo": 149.94157552719116
+    },
+    "ms": 97470
+  },
+  {
+    "type": "onAir",
+    "version": 2,
+    "payload": {
+      "channels": [
+        2
+      ]
+    },
+    "ms": 97528
+  },
+  {
+    "type": "master",
+    "version": 2,
+    "payload": {
+      "player": 1,
+      "bpm": 155.38,
+      "tempo": 149.94157552719116,
+      "pitchPercent": -3.500080108642578,
+      "synced": false,
+      "beatWithinBar": 4,
+      "handoff": 2,
+      "bpmOnlySynced": false
+    },
+    "ms": 97561
+  },
+  {
+    "type": "master",
+    "version": 2,
+    "payload": {
+      "player": 2,
+      "bpm": 96.0,
+      "tempo": 93.11993408203125,
+      "pitchPercent": -3.0000686645507812,
+      "synced": false,
+      "beatWithinBar": 3,
+      "handoff": null,
+      "bpmOnlySynced": false
+    },
+    "ms": 97591
+  },
+  {
+    "type": "beat",
+    "version": 2,
+    "payload": {
+      "beatWithinBar": 1,
+      "trackBeat": 232,
+      "master": false,
+      "onAir": false,
+      "player": 1,
+      "tempo": 149.94157552719116
+    },
+    "ms": 97869
+  },
+  {
+    "type": "beat",
+    "version": 2,
+    "payload": {
+      "beatWithinBar": 4,
+      "trackBeat": 11,
+      "master": true,
+      "onAir": true,
+      "player": 2,
+      "tempo": 93.11993408203125
+    },
+    "ms": 97875
+  },
+  {
+    "type": "beat",
+    "version": 2,
+    "payload": {
+      "beatWithinBar": 1,
+      "trackBeat": 12,
+      "master": true,
+      "onAir": true,
+      "player": 2,
+      "tempo": 93.11993408203125
+    },
+    "ms": 98518
+  },
+  {
+    "type": "master",
+    "version": 2,
+    "payload": {
+      "player": 2,
+      "bpm": 96.0,
+      "tempo": 93.11993408203125,
+      "pitchPercent": -3.0000686645507812,
+      "synced": false,
+      "beatWithinBar": 3,
+      "handoff": 1,
+      "bpmOnlySynced": false
+    },
+    "ms": 151509
+  },
+  {
+    "type": "master",
+    "version": 2,
+    "payload": {
+      "player": 1,
+      "bpm": 155.38,
+      "tempo": 149.94157552719116,
+      "pitchPercent": -3.500080108642578,
+      "synced": false,
+      "beatWithinBar": 3,
+      "handoff": null,
+      "bpmOnlySynced": false
+    },
+    "ms": 151602
+  }
+]
