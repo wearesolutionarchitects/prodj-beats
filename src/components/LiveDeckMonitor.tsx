@@ -2,60 +2,21 @@ import { useEffect, useMemo, useState } from 'preact/hooks';
 import { ProDjLinkSession, type SessionSnapshot } from '../application/session';
 import type { DeckState } from '../domain/deck';
 
-const bridgeUrl = 'ws://127.0.0.1:8787/events';
+import { observeSession, type EventSource, type SourceStatus } from '../application/event-source';
+import { WebSocketEventSource, ReplayEventSource } from '../infrastructure/event-sources';
+import { fixtureEvents } from '../infrastructure/fixtures';
 
-export default function LiveDeckMonitor() {
+export default function LiveDeckMonitor({ source }: { source?: EventSource }) {
   const session = useMemo(() => new ProDjLinkSession(), []);
   const [snapshot, setSnapshot] = useState<SessionSnapshot>(() => session.snapshot());
-  const [status, setStatus] = useState<'connecting' | 'live' | 'offline'>('connecting');
+  const [status, setStatus] = useState<SourceStatus>('connecting');
 
   useEffect(() => {
-    let reconnectTimer: number | undefined;
-    let socket: WebSocket | undefined;
-    let stopped = false;
-
-    const connect = () => {
-      setStatus('connecting');
-      socket = new WebSocket(bridgeUrl);
-
-      socket.addEventListener('open', () => setStatus('live'));
-      socket.addEventListener('close', () => {
-        if (stopped) {
-          return;
-        }
-        setStatus('offline');
-        reconnectTimer = window.setTimeout(connect, 1500);
-      });
-      socket.addEventListener('error', () => {
-        setStatus('offline');
-        socket?.close();
-      });
-      socket.addEventListener('message', (message) => {
-        try {
-          setSnapshot(session.applyRaw(JSON.parse(message.data)));
-        } catch (error) {
-          setSnapshot(
-            session.apply({
-              type: 'error',
-              version: 1,
-              ms: Date.now(),
-              payload: {
-                message: error instanceof Error ? error.message : 'Unable to parse bridge event'
-              }
-            })
-          );
-        }
-      });
-    };
-
-    connect();
-
-    return () => {
-      stopped = true;
-      window.clearTimeout(reconnectTimer);
-      socket?.close();
-    };
-  }, [session]);
+    const selected = source ?? (new URLSearchParams(window.location.search).get('source') === 'replay'
+      ? new ReplayEventSource(fixtureEvents, 20)
+      : new WebSocketEventSource());
+    return observeSession(selected, session, setSnapshot, setStatus);
+  }, [session, source]);
 
   return (
     <>
@@ -66,7 +27,7 @@ export default function LiveDeckMonitor() {
         </div>
         <div class={`session-pill session-pill--${status}`}>
           <span class="pulse" aria-hidden="true" />
-          {status === 'live' ? 'Live bridge' : status === 'connecting' ? 'Connecting' : 'Offline'}
+          {status === 'live' ? 'Live bridge' : status === 'connecting' ? 'Connecting' : status === 'replay' ? 'Replay' : status === 'complete' ? 'Replay complete' : 'Offline'}
         </div>
       </section>
 
@@ -109,7 +70,8 @@ function DeckCardView({ deck }: { deck: DeckState }) {
           <Fact label="Artist" value={deck.track?.artist ?? '-'} />
           <Fact label="Album" value={deck.track?.album ?? '-'} />
           <Fact label="BPM" value={deck.beat?.tempo?.toFixed(2) ?? deck.track?.tempo?.toFixed(2) ?? '-'} />
-          <Fact label="Beat" value={deck.beat?.beatNumber ?? deck.beat?.beat ?? '-'} />
+          <Fact label="Track beat" value={deck.beat?.trackBeat ?? '-'} />
+          <Fact label="Beat in bar" value={deck.beat?.beatWithinBar ?? '-'} />
           <Fact label="Phrase" value={deck.beat?.phrase?.kind ?? '-'} />
           <Fact label="Progress" value={phraseProgress(deck)} />
         </dl>

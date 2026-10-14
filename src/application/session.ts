@@ -13,7 +13,7 @@ export class ProDjLinkSession {
   private lastEvent: ProDjLinkEvent | null = null;
   private readonly messages: string[] = [];
 
-  constructor(players: PlayerId[] = [1, 2, 3, 4]) {
+  constructor(private readonly players: PlayerId[] = [1, 2, 3, 4]) {
     players.forEach((player) => this.decks.set(player, new Deck(player)));
   }
 
@@ -29,7 +29,7 @@ export class ProDjLinkSession {
     }
 
     if (event.type === 'beat') {
-      const player = event.payload.player ?? 1;
+      const player = event.payload.player;
       this.deck(player).updateBeat(event);
     }
 
@@ -42,7 +42,7 @@ export class ProDjLinkSession {
     }
 
     if (event.type === 'art') {
-      this.deck(event.payload.player).updateArtwork(event.payload.jpg, event.payload.player, event.ms);
+      this.deck(event.payload.player).updateArtwork(event);
     }
 
     if (event.type === 'sys') {
@@ -53,6 +53,21 @@ export class ProDjLinkSession {
       this.messages.unshift(event.payload.error ?? event.payload.message ?? 'Unknown ProDJ Link error');
     }
 
+    this.messages.splice(5);
+    return this.snapshot();
+  }
+
+  reset(): SessionSnapshot {
+    this.decks.clear();
+    this.players.forEach((player) => this.decks.set(player, new Deck(player)));
+    this.messages.length = 0;
+    this.lastEvent = null;
+    return this.snapshot();
+  }
+
+  disconnect(): SessionSnapshot {
+    this.decks.forEach((deck) => deck.disconnect());
+    this.lastEvent = null;
     return this.snapshot();
   }
 

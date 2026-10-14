@@ -49,7 +49,7 @@ classDiagram
     +updateBeat(event) void
     +updateTrack(event) void
     +updateStructure(event) void
-    +updateArtwork(jpg) void
+    +updateArtwork(event) void
   }
 
   class BridgeMain {
@@ -79,10 +79,11 @@ All transport sources should emit the same shape:
 ```json
 {
   "type": "beat",
-  "version": 1,
+  "version": 2,
   "ms": 1725728634353,
   "payload": {
-    "beat": 263,
+    "beatWithinBar": 3,
+    "trackBeat": 263,
     "master": true,
     "onAir": true,
     "player": 1,
@@ -117,3 +118,50 @@ npm run bridge:run
 
 Without `beat-link` JARs, the bridge starts and publishes a `sys` event that
 explains the missing runtime dependencies.
+
+## Version 2 event contract and lifecycle
+
+- `beatWithinBar`: 1–4, or `null` when unknown. `trackBeat`: absolute 1-based
+  track position, or `null`. Never substitute one for the other.
+- A phrase's `startBeat` is an absolute 1-based beat; `beats` is its length.
+  `Deck` computes the current phrase using the half-open interval
+  `[startBeat, startBeat + beats)` and zero-based `progressBeats`.
+- A loaded track has `source: { id, player, slot }`. `player` inside the source
+  identifies the media owner, while the event's `player` identifies the playing
+  deck. All three source fields define identity; titles do not.
+- `track.payload.source: null` explicitly clears the loaded track (also used
+  when metadata becomes unavailable). Track changes clear beat, structure and
+  artwork; metadata refreshes for the same identity preserve them.
+- Structure and artwork events require the matching source. Mismatching or older
+  events are ignored. `art.payload.jpg: null` explicitly removes artwork.
+- Device loss and transport disconnect clear all track-dependent state. Device
+  loss retains the offline device label. A fresh connection receives retained
+  bridge state in device/track/structure/art/beat order before new live events.
+  Snapshot envelopes use the connection timestamp so cached metadata and assets
+  form one coherent initial state rather than appearing stale on arrival.
+- Version 1 logs are intentionally rejected: their `beat` field was ambiguous.
+  Bridge and frontend must be updated together; use new version 2 recordings.
+  Identity is scoped to the source media session; remounting different media
+  with reused IDs needs an explicit unload/device-loss transition.
+
+## Live and replay sources
+
+`EventSource.subscribe(observer)` returns an unsubscribe function. Both
+`WebSocketEventSource` and `ReplayEventSource` feed the same `observeSession`
+parser/reducer path. The UI owns rendering only; socket lifecycle and replay
+scheduling live in `src/infrastructure/event-sources.ts`.
+
+- Default UI: live bridge at `ws://127.0.0.1:8787/events`.
+- `http://localhost:4325/?source=replay`: built-in fixtures at 20× speed,
+  without a bridge. Completion preserves the result; restarting resets state.
+- `npm run fixture:replay`: synchronous fixture replay through that same path.
+- `npm run fixture:replay -- /absolute/path/events.jsonl`: replay a version 2
+  bridge recording. CLI replay does not wait between events.
+- The replay adapter defaults to recorded timing; `speed=0` disables waiting.
+  Unsubscribe cancels pending replay/reconnect timers and ignores late sockets.
+
+Run `npm test`, `npm run check`, `npm run bridge:test` and `npm run build`.
+Tests cover identity changes, stale assets, unload, disconnect/reconnect,
+phrase boundaries, backwards seeks, source parity, timing and cancellation.
+Bridge tests use synthetic callbacks and retained snapshots; they do not
+establish physical player compatibility.

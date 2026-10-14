@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const payloadEnvelopeSchema = z.object({
   type: z.string(),
-  version: z.number().int().positive(),
+  version: z.literal(2),
   ms: z.number().int().nonnegative(),
   payload: z.unknown()
 });
@@ -12,28 +12,19 @@ export const deviceEventSchema = payloadEnvelopeSchema.extend({
   payload: z.object({
     active: z.boolean(),
     name: z.string(),
-    player: z.number().int().nonnegative()
+    player: z.number().int().positive()
   })
 });
 
 export const beatEventSchema = payloadEnvelopeSchema.extend({
   type: z.literal('beat'),
   payload: z.object({
-    beat: z.number().int().nonnegative(),
-    beatNumber: z.number().int().nonnegative().nullable().optional(),
+    // Both positions are 1-based; null means the player cannot report one.
+    beatWithinBar: z.number().int().min(1).max(4).nullable(),
+    trackBeat: z.number().int().positive().nullable(),
     master: z.boolean().nullable().optional(),
     onAir: z.boolean().nullable().optional(),
-    onair: z.boolean().nullable().optional(),
-    phrase: z
-      .object({
-        beat: z.number().int().nonnegative(),
-        beats: z.number().int().nonnegative(),
-        kind: z.string(),
-        progressBeats: z.number().int().nonnegative().optional()
-      })
-      .nullable()
-      .optional(),
-    player: z.number().int().nonnegative().optional(),
+    player: z.number().int().positive(),
     tempo: z.number().nullable().optional()
   })
 });
@@ -44,9 +35,9 @@ export const cueSchema = z.object({
 });
 
 export const sourceSchema = z.object({
-  id: z.number().int().nonnegative(),
-  player: z.number().int().nonnegative(),
-  slot: z.string()
+  id: z.number().int().positive(),
+  player: z.number().int().positive(),
+  slot: z.string().min(1)
 });
 
 export const trackEventSchema = payloadEnvelopeSchema.extend({
@@ -57,8 +48,8 @@ export const trackEventSchema = payloadEnvelopeSchema.extend({
     cues: z.array(cueSchema).default([]),
     duration: z.number().int().nonnegative().nullable().optional(),
     media: z.string().nullable().optional(),
-    player: z.number().int().nonnegative(),
-    source: sourceSchema.optional(),
+    player: z.number().int().positive(),
+    source: sourceSchema.nullable(),
     tempo: z.number().nullable().optional(),
     title: z.string().nullable().optional(),
     year: z.number().int().nullable().optional()
@@ -66,7 +57,7 @@ export const trackEventSchema = payloadEnvelopeSchema.extend({
 });
 
 export const phraseSchema = z.object({
-  beat: z.number().int().nonnegative(),
+  startBeat: z.number().int().positive(),
   beats: z.number().int().nonnegative(),
   kind: z.string()
 });
@@ -74,18 +65,20 @@ export const phraseSchema = z.object({
 export const structureEventSchema = payloadEnvelopeSchema.extend({
   type: z.literal('structure'),
   payload: z.object({
+    source: sourceSchema,
     bank: z.string(),
     mood: z.string(),
     phrases: z.array(phraseSchema),
-    player: z.number().int().nonnegative()
+    player: z.number().int().positive()
   })
 });
 
 export const artEventSchema = payloadEnvelopeSchema.extend({
   type: z.literal('art'),
   payload: z.object({
-    jpg: z.string(),
-    player: z.number().int().nonnegative()
+    source: sourceSchema,
+    jpg: z.string().nullable(),
+    player: z.number().int().positive()
   })
 });
 
@@ -120,6 +113,8 @@ export const prodjLinkEventSchema = z.discriminatedUnion('type', [
   errorEventSchema,
   ignoredEventSchema
 ]);
+
+export type TrackSource = z.infer<typeof sourceSchema>;
 
 export type ProDjLinkEvent = z.infer<typeof prodjLinkEventSchema>;
 export type DeviceEvent = z.infer<typeof deviceEventSchema>;

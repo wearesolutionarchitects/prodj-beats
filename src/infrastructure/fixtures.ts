@@ -3,7 +3,7 @@ import type { ProDjLinkEvent } from '../domain/events';
 export const fixtureEvents: ProDjLinkEvent[] = [
   {
     type: 'sys',
-    version: 1,
+    version: 2,
     ms: 1725728557000,
     payload: {
       code: 200,
@@ -12,7 +12,7 @@ export const fixtureEvents: ProDjLinkEvent[] = [
   },
   {
     type: 'device',
-    version: 1,
+    version: 2,
     ms: 1725728557100,
     payload: {
       active: true,
@@ -22,7 +22,7 @@ export const fixtureEvents: ProDjLinkEvent[] = [
   },
   {
     type: 'track',
-    version: 1,
+    version: 2,
     ms: 1725728557979,
     payload: {
       album: 'Herzeleid',
@@ -42,29 +42,31 @@ export const fixtureEvents: ProDjLinkEvent[] = [
   },
   {
     type: 'structure',
-    version: 1,
+    version: 2,
     ms: 1725728557981,
     payload: {
+      source: { id: 7216, player: 1, slot: 'SD_SLOT' },
       bank: 'default',
       mood: 'mid',
       player: 1,
       phrases: [
-        { beat: 1, beats: 10, kind: 'intro' },
-        { beat: 11, beats: 8, kind: 'verse_1' },
-        { beat: 19, beats: 20, kind: 'verse_2' },
-        { beat: 39, beats: 28, kind: 'verse_2' },
-        { beat: 67, beats: 20, kind: 'verse_3' },
-        { beat: 87, beats: 12, kind: 'break' },
-        { beat: 99, beats: 64, kind: 'chorus' }
+        { startBeat: 1, beats: 10, kind: 'intro' },
+        { startBeat: 11, beats: 8, kind: 'verse_1' },
+        { startBeat: 19, beats: 20, kind: 'verse_2' },
+        { startBeat: 39, beats: 28, kind: 'verse_2' },
+        { startBeat: 67, beats: 20, kind: 'verse_3' },
+        { startBeat: 87, beats: 12, kind: 'break' },
+        { startBeat: 99, beats: 64, kind: 'chorus' }
       ]
     }
   },
   {
     type: 'beat',
-    version: 1,
+    version: 2,
     ms: 1725728634353,
     payload: {
-      beat: 263,
+      beatWithinBar: 3,
+      trackBeat: 263,
       master: true,
       onAir: true,
       player: 1,
@@ -73,7 +75,7 @@ export const fixtureEvents: ProDjLinkEvent[] = [
   },
   {
     type: 'device',
-    version: 1,
+    version: 2,
     ms: 1725728640000,
     payload: {
       active: true,

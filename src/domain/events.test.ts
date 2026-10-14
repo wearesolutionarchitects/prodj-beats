@@ -3,27 +3,27 @@ import test from 'node:test';
 import { EventParser } from './events';
 import { fixtureEvents } from '../infrastructure/fixtures';
 
-test('parses supported fixture events', () => {
-  const parser = new EventParser();
-  const parsed = parser.parseMany(fixtureEvents);
+const parser = new EventParser();
+const beat = { type: 'beat', version: 2, ms: 1, payload: { player: 1, beatWithinBar: 3, trackBeat: 263 } };
 
-  assert.equal(parsed.length, fixtureEvents.length);
-  assert.equal(parsed[0]?.type, 'sys');
+test('parses all canonical fixtures and preserves distinct beat positions', () => {
+  assert.equal(parser.parseMany(fixtureEvents).length, fixtureEvents.length);
+  assert.deepEqual(parser.parse(beat), beat);
 });
 
-test('normalizes legacy onair beat field', () => {
-  const parser = new EventParser();
-  const parsed = parser.parse({
-    type: 'beat',
-    version: 1,
-    ms: 1,
-    payload: {
-      beat: 1,
-      master: true,
-      onair: null
-    }
-  });
+test('rejects ambiguous legacy beats, unsupported versions and missing player', () => {
+  for (const input of [
+    { ...beat, version: 1 }, { ...beat, version: 3 },
+    { ...beat, payload: { beat: 263, player: 1 } },
+    { ...beat, payload: { beatWithinBar: 1, trackBeat: 263 } },
+    { ...beat, payload: { ...beat.payload, beatWithinBar: 5 } },
+    { ...beat, payload: { ...beat.payload, trackBeat: 0 } }
+  ]) assert.throws(() => parser.parse(input));
+  assert.doesNotThrow(() => parser.parse({ ...beat, payload: { player: 1, beatWithinBar: null, trackBeat: null } }));
+});
 
-  assert.equal(parsed.type, 'beat');
-  assert.equal(parsed.payload.onair, null);
+test('requires asset identity and supports explicit unload and artwork removal', () => {
+  assert.throws(() => parser.parse({ type: 'art', version: 2, ms: 1, payload: { player: 1, jpg: 'abc' } }));
+  assert.doesNotThrow(() => parser.parse({ type: 'track', version: 2, ms: 1, payload: { player: 1, source: null } }));
+  assert.doesNotThrow(() => parser.parse({ type: 'art', version: 2, ms: 1, payload: { player: 1, source: { id: 1, player: 2, slot: 'USB' }, jpg: null } }));
 });

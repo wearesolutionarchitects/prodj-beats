@@ -7,11 +7,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Set;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 final class EventBroadcaster implements AutoCloseable {
     private final Set<EventSink> sinks = ConcurrentHashMap.newKeySet();
     private final BufferedWriter eventLog;
+    private final Map<Integer, Map<String, CanonicalEvent>> latest = new LinkedHashMap<>();
 
     EventBroadcaster(Path eventLogPath) throws IOException {
         Files.createDirectories(eventLogPath.toAbsolutePath().getParent());
@@ -23,15 +27,37 @@ final class EventBroadcaster implements AutoCloseable {
         );
     }
 
-    void add(EventSink sink) {
-        sinks.add(sink);
+    synchronized void add(EventSink sink) {
+        try {
+            long now = System.currentTimeMillis();
+            for (Map<String, CanonicalEvent> deck : latest.values()) {
+                for (String type : List.of("device", "track", "structure", "art", "beat")) {
+                    CanonicalEvent event = deck.get(type);
+                    if (event != null) sink.send(new CanonicalEvent(type, 2, now, event.payload()).toJson());
+                }
+            }
+            sinks.add(sink);
+        } catch (IOException ex) {
+            sink.close();
+        }
     }
 
     void remove(EventSink sink) {
         sinks.remove(sink);
     }
 
-    void publish(CanonicalEvent event) {
+    synchronized void publish(CanonicalEvent event) {
+        Object player = event.payload().get("player");
+        if (player instanceof Integer number) {
+            Map<String, CanonicalEvent> deck = latest.computeIfAbsent(number, ignored -> new LinkedHashMap<>());
+            CanonicalEvent track = deck.get("track");
+            if ((event.type().equals("device") && Boolean.FALSE.equals(event.payload().get("active"))) ||
+                    (event.type().equals("track") && (event.payload().get("source") == null || track == null ||
+                    !java.util.Objects.equals(track.payload().get("source"), event.payload().get("source"))))) {
+                deck.keySet().removeAll(List.of("track", "structure", "art", "beat"));
+            }
+            deck.put(event.type(), event);
+        }
         String message = event.toJson();
         writeEventLog(message);
         for (EventSink sink : sinks) {

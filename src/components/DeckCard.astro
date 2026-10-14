@@ -47,8 +47,12 @@ const phraseTotal = deck.structure?.phrases.reduce((sum, phrase) => sum + phrase
         <dd>{deck.beat?.tempo?.toFixed(2) ?? deck.track?.tempo?.toFixed(2) ?? '-'}</dd>
       </div>
       <div>
-        <dt>Beat</dt>
-        <dd>{deck.beat?.beatNumber ?? deck.beat?.beat ?? '-'}</dd>
+        <dt>Track beat</dt>
+        <dd>{deck.beat?.trackBeat ?? '-'}</dd>
+      </div>
+      <div>
+        <dt>Beat in bar</dt>
+        <dd>{deck.beat?.beatWithinBar ?? '-'}</dd>
       </div>
       <div>
         <dt>Phrase</dt>

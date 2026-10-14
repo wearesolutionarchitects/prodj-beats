@@ -9,11 +9,11 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
 
 final class BeatLinkAdapter {
     private final EventBroadcaster broadcaster;
-    private final Map<Integer, List<Map<String, Object>>> structuresByPlayer = new ConcurrentHashMap<>();
+    private final Map<Integer, Map<String, Object>> sourcesByPlayer = new HashMap<>();
 
     BeatLinkAdapter(EventBroadcaster broadcaster) {
         this.broadcaster = broadcaster;
@@ -150,18 +150,19 @@ final class BeatLinkAdapter {
         target.getClass().getMethod(methodName, listenerClass).invoke(target, listener);
     }
 
-    private void handleDeviceAnnouncement(Method method, Object announcement) {
+    private synchronized void handleDeviceAnnouncement(Method method, Object announcement) {
         String name = stringValue(announcement, "getDeviceName", "getName");
         int player = intValue(announcement, "getDeviceNumber", "getDevice", "getPlayer");
 
-        if (player < 0) {
+        if (player <= 0) {
             broadcaster.publish(CanonicalEvent.sys(202, "Ignored device event without player number"));
             return;
         }
 
+        if (method.getName().toLowerCase().contains("lost")) sourcesByPlayer.remove(player);
         broadcaster.publish(new CanonicalEvent(
                 "device",
-                1,
+                2,
                 System.currentTimeMillis(),
                 Map.of(
                         "active", !method.getName().toLowerCase().contains("lost"),
@@ -171,53 +172,81 @@ final class BeatLinkAdapter {
         ));
     }
 
-    private void handleBeat(Method method, Object beat) {
+    private synchronized void handleBeat(Method method, Object beat) {
         int player = intValue(beat, "getDeviceNumber", "getDevice", "getPlayer");
+        if (player <= 0) return;
         int beatWithinBar = intValue(beat, "getBeatWithinBar");
-        int beatNumber = beatNumber(beat);
         double tempo = doubleValue(beat, "getEffectiveTempo", "getBpm");
-        Boolean master = booleanValue(beat, "isTempoMaster");
+        Object status = latestStatusFor(beat);
+        int beatNumber = intValue(status, "getBeatNumber");
+        Boolean master = booleanValue(status, "isTempoMaster");
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("beat", Math.max(0, beatWithinBar));
-        payload.put("beatNumber", beatNumber > 0 ? beatNumber : null);
+        payload.put("beatWithinBar", beatWithinBar >= 1 && beatWithinBar <= 4 ? beatWithinBar : null);
+        payload.put("trackBeat", beatNumber > 0 ? beatNumber : null);
         payload.put("master", master);
-        payload.put("phrase", currentPhrase(Math.max(0, player), beatNumber));
+        payload.put("onAir", booleanValue(status, "isOnAir"));
         payload.put("player", Math.max(0, player));
         payload.put("tempo", tempo);
 
         broadcaster.publish(new CanonicalEvent(
                 "beat",
-                1,
+                2,
                 System.currentTimeMillis(),
                 payload
         ));
     }
 
-    private void handleTrackMetadata(Method method, Object update) {
-        Object metadata = fieldValue(update, "metadata");
-        if (metadata == null) {
+    private synchronized void handleTrackMetadata(Method method, Object update) {
+        int player = intFieldValue(update, "player");
+        if (player <= 0) return;
+        publishTrack(player, fieldValue(update, "metadata"));
+    }
+
+    private void publishTrack(int player, Object metadata) {
+        Map<String, Object> source = sourcePayload(fieldValue(metadata, "trackReference"));
+        if (source == null) {
+            sourcesByPlayer.remove(player);
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("player", player);
+            payload.put("source", null);
+            broadcaster.publish(new CanonicalEvent("track", 2, System.currentTimeMillis(), payload));
             return;
         }
-
-        int player = intFieldValue(update, "player");
-        Object trackReference = fieldValue(metadata, "trackReference");
+        sourcesByPlayer.put(player, source);
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("album", searchableLabel(firstValue(metadata, "getAlbum")));
         payload.put("artist", searchableLabel(firstValue(metadata, "getArtist")));
         payload.put("cues", List.of());
         payload.put("duration", durationMillis(intValue(metadata, "getDuration")));
         payload.put("player", Math.max(0, player));
-        payload.put("source", sourcePayload(trackReference));
+        payload.put("source", source);
         payload.put("tempo", normalizedTempo(intValue(metadata, "getTempo")));
         payload.put("title", stringValue(metadata, "getTitle"));
         payload.put("year", nullablePositive(intValue(metadata, "getYear")));
 
-        broadcaster.publish(new CanonicalEvent("track", 1, System.currentTimeMillis(), payload));
+        broadcaster.publish(new CanonicalEvent("track", 2, System.currentTimeMillis(), payload));
     }
 
-    private void handleAlbumArt(Method method, Object update) {
+    private synchronized void handleAlbumArt(Method method, Object update) {
+        int player = intFieldValue(update, "player");
+        Object metadata = currentMetadata(player);
+        Map<String, Object> source = sourcePayload(fieldValue(metadata, "trackReference"));
+        if (source == null) return;
         Object art = fieldValue(update, "art");
+        // Artwork IDs are not track IDs. Match against metadata's artwork reference.
+        if (art != null) {
+            Map<String, Object> reference = sourcePayload(fieldValue(art, "artReference"));
+            if (reference == null || !reference.get("player").equals(source.get("player")) ||
+                    !reference.get("slot").equals(source.get("slot")) ||
+                    !reference.get("id").equals(intValue(metadata, "getArtworkId"))) return;
+        }
+        ensureTrack(player, metadata, source);
         if (art == null) {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("player", player);
+            payload.put("source", source);
+            payload.put("jpg", null);
+            broadcaster.publish(new CanonicalEvent("art", 2, System.currentTimeMillis(), payload));
             return;
         }
 
@@ -231,14 +260,20 @@ final class BeatLinkAdapter {
         duplicate.get(bytes);
 
         Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("source", source);
         payload.put("jpg", Base64.getEncoder().encodeToString(bytes));
         payload.put("player", Math.max(0, intFieldValue(update, "player")));
 
-        broadcaster.publish(new CanonicalEvent("art", 1, System.currentTimeMillis(), payload));
+        broadcaster.publish(new CanonicalEvent("art", 2, System.currentTimeMillis(), payload));
     }
 
-    private void handleStructure(Method method, Object update) {
+    private synchronized void handleStructure(Method method, Object update) {
+        int player = intFieldValue(update, "player");
         Object taggedSection = fieldValue(update, "taggedSection");
+        Map<String, Object> source = analysisSource(player, taggedSection);
+        Object metadata = currentMetadata(player);
+        if (source == null || !source.equals(sourcePayload(fieldValue(metadata, "trackReference")))) return;
+        ensureTrack(player, metadata, source);
         Object songStructureTag = firstValue(taggedSection, "body");
         Object body = firstValue(songStructureTag, "body");
         Object entries = firstValue(body, "entries");
@@ -247,17 +282,16 @@ final class BeatLinkAdapter {
             return;
         }
 
-        int player = intFieldValue(update, "player");
         int endBeat = intValue(body, "endBeat");
         Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("source", source);
         payload.put("bank", enumName(firstValue(body, "bank")));
         payload.put("mood", enumName(firstValue(body, "mood")));
         List<Map<String, Object>> structurePhrases = structurePhrases(phrases, endBeat);
         payload.put("phrases", structurePhrases);
         payload.put("player", Math.max(0, player));
 
-        structuresByPlayer.put(Math.max(0, player), structurePhrases);
-        broadcaster.publish(new CanonicalEvent("structure", 1, System.currentTimeMillis(), payload));
+        broadcaster.publish(new CanonicalEvent("structure", 2, System.currentTimeMillis(), payload));
     }
 
     private Object singleton(String className) throws ReflectiveOperationException {
@@ -319,9 +353,12 @@ final class BeatLinkAdapter {
     }
 
     private Map<String, Object> sourcePayload(Object trackReference) {
+        int id = intFieldValue(trackReference, "rekordboxId");
+        int player = intFieldValue(trackReference, "player");
+        if (id <= 0 || player <= 0) return null;
         Map<String, Object> source = new LinkedHashMap<>();
-        source.put("id", Math.max(0, intFieldValue(trackReference, "rekordboxId")));
-        source.put("player", Math.max(0, intFieldValue(trackReference, "player")));
+        source.put("id", id);
+        source.put("player", player);
         Object slot = fieldValue(trackReference, "slot");
         source.put("slot", slot == null ? "UNKNOWN" : slot.toString());
         return source;
@@ -359,21 +396,13 @@ final class BeatLinkAdapter {
             int beats = nextBeat > beat ? nextBeat - beat : 0;
 
             Map<String, Object> phrase = new LinkedHashMap<>();
-            phrase.put("beat", Math.max(0, beat));
+            if (beat <= 0 || nextBeat <= beat) continue;
+            phrase.put("startBeat", beat);
             phrase.put("beats", beats);
             phrase.put("kind", enumName(firstValue(firstValue(entry, "kind"), "id")));
             phrases.add(phrase);
         }
         return phrases;
-    }
-
-    private int beatNumber(Object beat) {
-        Object status = latestStatusFor(beat);
-        int statusBeat = intValue(status, "getBeatNumber");
-        if (statusBeat > 0) {
-            return statusBeat;
-        }
-        return intValue(beat, "getBeatNumber");
     }
 
     private Object latestStatusFor(Object update) {
@@ -393,34 +422,40 @@ final class BeatLinkAdapter {
         return null;
     }
 
-    private Map<String, Object> currentPhrase(int player, int beatNumber) {
-        if (beatNumber <= 0) {
+    private Object currentMetadata(int player) {
+        try {
+            Object finder = singleton("org.deepsymmetry.beatlink.data.MetadataFinder");
+            return finder.getClass().getMethod("getLatestMetadataFor", int.class).invoke(finder, player);
+        } catch (ReflectiveOperationException ex) {
             return null;
         }
-
-        List<Map<String, Object>> phrases = structuresByPlayer.get(player);
-        if (phrases == null) {
-            return null;
-        }
-
-        for (Map<String, Object> phrase : phrases) {
-            int start = numberValue(phrase.get("beat"));
-            int length = numberValue(phrase.get("beats"));
-            if (beatNumber >= start && beatNumber < start + length) {
-                Map<String, Object> current = new LinkedHashMap<>(phrase);
-                current.put("progressBeats", beatNumber - start);
-                return current;
-            }
-        }
-
-        return null;
     }
 
-    private int numberValue(Object value) {
-        if (value instanceof Number number) {
-            return number.intValue();
+    private void ensureTrack(int player, Object metadata, Map<String, Object> source) {
+        if (!source.equals(sourcesByPlayer.get(player))) publishTrack(player, metadata);
+    }
+
+    private Map<String, Object> analysisSource(int player, Object tag) {
+        if (tag == null) return null;
+        try {
+            Object finder = singleton("org.deepsymmetry.beatlink.data.AnalysisTagFinder");
+            Object loaded = finder.getClass().getMethod("getLoadedAnalysisTags").invoke(finder);
+            if (loaded instanceof Map<?, ?> decks) {
+                for (Map.Entry<?, ?> deck : decks.entrySet()) {
+                    if (intFieldValue(deck.getKey(), "player") != player ||
+                            intFieldValue(deck.getKey(), "hotCue") != 0) continue;
+                    if (deck.getValue() instanceof Map<?, ?> tags) {
+                        for (Object entry : tags.values()) {
+                            if (fieldValue(entry, "taggedSection") == tag)
+                                return sourcePayload(fieldValue(entry, "dataReference"));
+                        }
+                    }
+                }
+            }
+        } catch (ReflectiveOperationException ignored) {
+            // An unidentifiable analysis must not be assigned to the current track.
         }
-        return -1;
+        return null;
     }
 
     private String enumName(Object value) {

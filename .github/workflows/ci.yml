@@ -47,5 +47,5 @@ jobs:
       - name: Fetch Java bridge dependencies
         run: npm run bridge:deps
 
-      - name: Build Java bridge
-        run: npm run bridge:build
+      - name: Test Java bridge
+        run: npm run bridge:test

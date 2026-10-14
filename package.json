@@ -12,6 +12,7 @@
     "check": "astro check",
     "bridge:deps": "node scripts/bridge-deps.mjs",
     "bridge:build": "node scripts/bridge-build.mjs",
+    "bridge:test": "npm run bridge:build && node scripts/bridge-test.mjs",
     "bridge:run": "node scripts/bridge-run.mjs",
     "test": "node --test --import tsx src/**/*.test.ts",
     "fixture:replay": "node --import tsx src/scripts/replay-fixtures.ts"
