@@ -87,7 +87,7 @@ function DeckCardView({ deck }: { deck: DeckState }) {
           <Fact label="Track beat" value={deck.beat?.trackBeat ?? '-'} />
           <Fact label="Beat in bar" value={deck.beat?.beatWithinBar ?? '-'} />
           <Fact label="Phrase" value={deck.beat?.phrase?.kind ?? '-'} />
-          <Fact label="Progress" value={phraseProgress(deck)} timing />
+          <Fact label="Progress" value={phraseProgress(deck)} fullWidth />
           <Fact label="Playing time" value={formatTime(time.playingMs)} timing />
           <Fact label="Remaining time" value={formatTime(time.remainingMs)} timing warning={time.ending} />
         </dl>
@@ -106,9 +106,9 @@ function DeckCardView({ deck }: { deck: DeckState }) {
   );
 }
 
-function Fact({ label, value, timing = false, warning = false }: { label: string; value: string | number; timing?: boolean; warning?: boolean }) {
+function Fact({ label, value, timing = false, fullWidth = false, warning = false }: { label: string; value: string | number; timing?: boolean; fullWidth?: boolean; warning?: boolean }) {
   return (
-    <div class={timing ? 'fact--timing' : undefined}>
+    <div class={fullWidth ? 'fact--wide' : timing ? 'fact--timing' : undefined}>
       <dt>{label}</dt>
       <dd class={warning ? 'time--ending' : undefined}>{value}</dd>
     </div>

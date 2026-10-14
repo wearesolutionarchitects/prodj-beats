@@ -206,13 +206,13 @@ h2 {
 .facts {
   display: grid;
   flex: 1;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
   margin: 0;
 }
 
 .facts div {
-  grid-column: span 3;
+  grid-column: span 1;
   min-width: 0;
 }
 
@@ -285,7 +285,7 @@ h2 {
   }
 
   .facts {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -327,9 +327,11 @@ h2 {
 }
 
 
-.facts .fact--timing { grid-column: span 2; }
+.facts .fact--wide { grid-column: 1 / -1; }
+.facts .fact--timing { grid-column: span 1; }
 .facts .time--ending { color: var(--color-danger); }
 .fact--timing dd { font-variant-numeric: tabular-nums; }
 @media (max-width: 520px) {
-  .facts div, .facts .fact--timing { grid-column: span 1; }
+  .facts div { grid-column: 1 / -1; }
+  .facts .fact--timing { grid-column: span 1; }
 }
