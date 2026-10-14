@@ -166,3 +166,13 @@ Tests cover identity changes, stale assets, unload, disconnect/reconnect,
 phrase boundaries, backwards seeks, source parity, timing and cancellation.
 Bridge tests use synthetic callbacks and retained snapshots; they do not
 establish physical player compatibility.
+
+
+## Development process ownership
+
+`npm run dev` / `npm start` use `scripts/dev.mjs` to run Astro in the foreground
+and spawn the Java bridge directly. Logs are inherited by the same VS Code
+terminal. `Ctrl+C`, Java startup failure, or bridge exit closes both services.
+The shared `bridge-command.mjs` performs the build and classpath preparation;
+`bridge:run` is only for standalone diagnostics. Agents reuse the user's
+services and must not start their own instances for verification.

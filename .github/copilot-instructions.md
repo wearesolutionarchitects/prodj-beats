@@ -6,8 +6,9 @@
 - Vor Änderungen `git status --short` und den betroffenen Quellcode prüfen. Zwischen Aufträgen kann der Nutzer Dateien ändern, committen und pushen; den aktuellen Stand neu lesen.
 - Bestehenden Dev-Server auf Port 4325 und bestehende Bridge auf Port 8787 verwenden. Vor einer Browserprüfung den Status prüfen, keinen zweiten Server starten.
 - Keine eigenen Hintergrundserver, versteckten Prozesse, alternativen Ports, temporären HTTP-Server oder in Dateien umgeleiteten Laufzeitprozesse starten.
-- Dev-Server und Bridge werden vom Nutzer in seinen VS-Code-Terminals gestartet. Für einen erforderlichen Neustart den konkreten Befehl nennen; laufende Prozesse nur auf ausdrücklichen Auftrag stoppen oder ersetzen.
-- Astro kann Agent-Aufrufe von `astro dev` automatisch in den Hintergrund verlegen. Deshalb einen Server nicht aus Agent-Tools starten, auch nicht vermeintlich im Vordergrund. Kein `--force`, `--ignore-lock` oder Löschen der Lockdatei als Umgehung.
+- `npm run dev` (auch `npm start`) ist der gemeinsame Vordergrund-Start für Web-App und Java-Bridge im VS-Code-Terminal; beide Logs bleiben dort sichtbar, `Ctrl+C` beendet beide. Kein zusätzlicher `bridge:run`-Prozess daneben.
+- Dev-Server und Bridge werden vom Nutzer über diesen gemeinsamen Befehl gestartet. Für einen erforderlichen Neustart den konkreten Befehl nennen; laufende Prozesse nur auf ausdrücklichen Auftrag stoppen oder ersetzen.
+- Der direkte Astro-CLI-Aufruf kann aus Agent-Umgebungen automatisch im Hintergrund landen; der gemeinsame Starter nutzt deshalb die Astro-API im Vordergrund. Deshalb einen Server nicht aus Agent-Tools starten, auch nicht vermeintlich im Vordergrund. Kein `--force`, `--ignore-lock` oder Löschen der Lockdatei als Umgehung.
 - Nach einer Änderung prüfen, ob HMR greift. Vite aktualisiert nur die Web-App; Java-Änderungen erfordern Build und Bridge-Neustart. Nicht behaupten, eine laufende JVM verwende bereits neu kompilierten Code.
 - Keine Netzwerkadapter, Firewall-, Routing-, Anmelde- oder Systemeinstellungen eigenständig ändern.
 

@@ -11,35 +11,28 @@ codebase.
 
 ## Local Development
 
-Run `npm run dev` and open `http://localhost:4325`. The dev server uses a fixed
-port and fails if it is occupied instead of moving to another project’s port.
-The server listens on the local network. On another device in the same network,
-open `http://macstudio.local:4325/?source=replay` (or use the Mac Studio's LAN IP).
+Run `npm run dev` in your VS Code terminal. This builds the Java bridge,
+starts **Astro and the bridge together in the foreground**, and shows both
+logs in the same terminal. `Ctrl+C` stops both services; if one fails, the
+other is stopped too. `npm start` uses the same flow.
 
-Run the server in your VS Code terminal to keep Vite output visible there.
-Coding agents must reuse that server rather than start background instances.
-If an earlier background server is still running, stop it once and then start
-in the same VS Code terminal:
+Prerequisites: Node.js, JDK 21 or newer, and the beat-link runtime dependencies
+installed once with `npm run bridge:deps`.
 
-```bash
-npm run dev -- stop
-npm run dev
-```
+Open `http://localhost:4325` locally or `http://macstudio.local:4325/` on the
+MacBook Air in the same network. Add `?source=replay` for fixture playback.
+The port stays fixed at 4325; an occupied port causes a startup failure.
+The browser connects to `/events` on the UI host; Astro proxies WebSocket
+traffic to the local bridge at `127.0.0.1:8787`. Production hosting needs an
+equivalent WebSocket proxy.
 
-To inspect existing background-server logs without starting another server:
+Stop any old independently started bridge in its original terminal before
+using the combined command. For an old Astro background instance, run
+`npx astro dev stop` once. No services are forcibly replaced by `npm run dev`.
 
-```bash
-npm run dev -- logs --follow
-```
-
-Project rules for Copilot and Codex are in
-[.github/copilot-instructions.md](.github/copilot-instructions.md), also referenced
-by [AGENTS.md](AGENTS.md).
-
-For live hardware data, also run `npm run bridge:run` on the Mac Studio. The
-browser connects to `/events` on the UI host; the dev server proxies WebSocket
-traffic to `ws://127.0.0.1:8787/events`. The bridge can stay bound to loopback.
-A separately hosted production UI needs an equivalent WebSocket proxy.
+Coding agents reuse your running services rather than start separate servers.
+Project rules are in [.github/copilot-instructions.md](.github/copilot-instructions.md),
+also referenced by [AGENTS.md](AGENTS.md).
 
 ## Current Scope
 
@@ -84,7 +77,7 @@ Install dependencies:
 npm install
 ```
 
-Run the web app:
+Run the web app and bridge together:
 
 ```bash
 npm run dev
@@ -101,7 +94,7 @@ npm run bridge:deps
 npm run bridge:build
 ```
 
-Run the Java bridge:
+Run only the Java bridge for standalone diagnostics (not alongside `npm run dev`):
 
 ```bash
 npm run bridge:run

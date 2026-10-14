@@ -22,6 +22,10 @@ event envelope consumed by the Astro/TypeScript app:
 
 ## Commands
 
+Normal development: `npm run dev` starts web app and bridge together with
+visible terminal logs. `Ctrl+C` stops both. The standalone commands below
+are for bridge diagnostics; do not run a second bridge alongside the app.
+
 ```bash
 npm run bridge:build
 npm run bridge:deps
@@ -97,7 +101,8 @@ background worker once players appear and retry after a failed start. A false
 listeners rather than registering duplicate callbacks. The metadata listener
 is attached before CrateDigger can start MetadataFinder.
 
-`npm run bridge:run` rebuilds Java sources on every launch. Vite hot reload
+`npm run dev` and `npm run bridge:run` share the Java build/classpath setup
+and rebuild Java sources on every launch. Vite hot reload
 updates the web UI only; Java changes require restarting the bridge. Initial
 metadata/artwork may arrive after beat packets while the player's database is
 being fetched. Two network adapters on the same subnet can cause duplicate
