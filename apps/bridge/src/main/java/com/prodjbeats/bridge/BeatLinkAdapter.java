@@ -164,7 +164,19 @@ final class BeatLinkAdapter implements AutoCloseable {
                 "org.deepsymmetry.beatlink.BeatListener",
                 this::handleBeat
         );
+        registerOnAirListener(finder);
         invokeIfPresent(finder, "start");
+    }
+
+    void registerOnAirListener(Object finder) throws ReflectiveOperationException {
+        registerListener(finder, "addOnAirListener", "org.deepsymmetry.beatlink.OnAirListener", this::handleOnAir);
+    }
+
+    private synchronized void handleOnAir(Method method, Object channels) {
+        if (!(channels instanceof Set<?> reported) || announcedAt.isEmpty()) return;
+        List<Integer> audible = reported.stream().filter(Integer.class::isInstance).map(Integer.class::cast)
+                .filter(channel -> channel >= 1 && channel <= 6).sorted().toList();
+        broadcaster.publish(new CanonicalEvent("onAir", 2, System.currentTimeMillis(), Map.of("channels", audible)));
     }
 
     private void startMetadataServices() throws ReflectiveOperationException {
@@ -282,6 +294,11 @@ final class BeatLinkAdapter implements AutoCloseable {
         Object address = firstValue(announcement, "getAddress");
         payload.put("address", address instanceof InetAddress ip ? ip.getHostAddress() : null);
         broadcaster.publish(new CanonicalEvent("device", 2, System.currentTimeMillis(), payload));
+        if (!Boolean.TRUE.equals(payload.get("active"))) {
+            Map<String, Object> unknown = new LinkedHashMap<>();
+            unknown.put("channels", null);
+            broadcaster.publish(new CanonicalEvent("onAir", 2, System.currentTimeMillis(), unknown));
+        }
     }
 
     void registerStatusListener(Object virtualCdj) throws ReflectiveOperationException {

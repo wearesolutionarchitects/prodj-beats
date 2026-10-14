@@ -1,6 +1,7 @@
 import type { ProDjLinkEvent } from '../domain/events';
 
 export const fixtureEvents: ProDjLinkEvent[] = [
+  { type: 'onAir', version: 2, ms: 1725728557000, payload: { channels: [1, 2] } },
   { type: 'device', version: 2, ms: 1725728557000,
     payload: { active: true, name: 'XDJ-XZ', player: 33, address: '192.168.178.47' } },
   { type: 'mixer', version: 2, ms: 1725728557000,

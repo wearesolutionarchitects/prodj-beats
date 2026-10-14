@@ -136,6 +136,7 @@ h2 {
 
 .deck-grid {
   display: grid;
+  align-items: start;
   grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(240px, 0.8fr);
   gap: 16px;
   margin-top: 16px;
@@ -353,3 +354,5 @@ h2 {
 @media (min-width: 861px) and (max-width: 1250px) {
   .deck-card__body { flex-direction: column; align-items: stretch; }
 }
+
+.on-air-card { min-height: 0; }

@@ -164,3 +164,31 @@ test('mixer status stays separate, rejects stale updates and clears on loss, dis
   assert.equal(session.snapshot().mixers.length, 0);
   assert.throws(() => session.applyRaw({ ...event, payload: { ...event.payload, bpm: 0 } }));
 });
+
+test('on-air reports replace the channel set, distinguish silence from unknown and clear on loss', () => {
+  const session = new ProDjLinkSession();
+  const event = (ms: number, channels: number[] | null) => ({ type: 'onAir', version: 2, ms, payload: { channels } });
+  assert.equal(session.snapshot().onAir, null);
+  session.applyRaw(event(10, [1, 2]));
+  assert.deepEqual(session.snapshot().onAir?.payload.channels, [1, 2]);
+  session.applyRaw(event(11, [2]));
+  session.applyRaw(event(10, [1]));
+  assert.deepEqual(session.snapshot().onAir?.payload.channels, [2]);
+  session.applyRaw(event(12, []));
+  assert.deepEqual(session.snapshot().onAir?.payload.channels, []);
+  session.applyRaw(event(13, null));
+  assert.equal(session.snapshot().onAir?.payload.channels, null);
+  session.applyRaw(event(14, [1, 6]));
+  session.applyRaw({ type: 'device', version: 2, ms: 15, payload: { player: 33, name: 'XDJ-XZ', active: false } });
+  session.applyRaw(event(14, [1, 2]));
+  assert.equal(session.snapshot().onAir, null);
+  session.applyRaw(event(16, [2]));
+  session.disconnect();
+  assert.equal(session.snapshot().onAir, null);
+  session.applyRaw(event(1, [1]));
+  session.reset();
+  assert.equal(session.snapshot().onAir, null);
+  assert.throws(() => session.applyRaw(event(20, [0])));
+  assert.throws(() => session.applyRaw(event(20, [7])));
+  assert.throws(() => session.applyRaw(event(20, [1, 1])));
+});

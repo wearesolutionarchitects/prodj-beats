@@ -21,6 +21,7 @@ test('live and replay use identical validation and produce identical session sna
   socket.dispatchEvent(new Event('open'));
   fixtureEvents.forEach((event) => socket.message(event));
   assert.deepEqual(live.snapshot(), replay.snapshot());
+  assert.deepEqual(live.snapshot().onAir?.payload.channels, [1, 2]);
   assert.deepEqual(statuses, ['replay', 'complete']);
   stop();
 });
@@ -61,7 +62,11 @@ test('disconnect clears state, reconnects once and ignores obsolete sockets and 
   const first = sockets[0]!;
   first.dispatchEvent(new Event('open'));
   fixtureEvents.forEach((event) => first.message(event));
+  assert.deepEqual(session.snapshot().onAir?.payload.channels, [1, 2]);
   first.close();
+  assert.equal(session.snapshot().onAir, null);
+  first.message(fixtureEvents.find(event => event.type === 'onAir'));
+  assert.equal(session.snapshot().onAir, null);
   assert.equal(session.snapshot().decks[0]?.track, null);
   assert.equal(session.snapshot().decks[0]?.device?.active, false);
   first.message(fixtureEvents[2]);
@@ -72,6 +77,7 @@ test('disconnect clears state, reconnects once and ignores obsolete sockets and 
   sockets[1]!.dispatchEvent(new Event('open'));
   fixtureEvents.forEach((event) => sockets[1]!.message(event));
   assert.ok(session.snapshot().decks[0]?.track);
+  assert.deepEqual(session.snapshot().onAir?.payload.channels, [1, 2]);
   stop();
   const before = session.snapshot();
   sockets[1]!.message(fixtureEvents[0]);

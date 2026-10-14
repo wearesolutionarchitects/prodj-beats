@@ -15,6 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 final class EventBroadcaster implements AutoCloseable {
     private final Set<EventSink> sinks = ConcurrentHashMap.newKeySet();
     private final BufferedWriter eventLog;
+    private CanonicalEvent onAir;
     private final Map<Integer, Map<String, CanonicalEvent>> latest = new LinkedHashMap<>();
 
     EventBroadcaster(Path eventLogPath) throws IOException {
@@ -36,6 +37,7 @@ final class EventBroadcaster implements AutoCloseable {
                     if (event != null) sink.send(new CanonicalEvent(type, 2, now, event.payload()).toJson());
                 }
             }
+            if (onAir != null) sink.send(new CanonicalEvent("onAir", 2, now, onAir.payload()).toJson());
             sinks.add(sink);
         } catch (IOException ex) {
             sink.close();
@@ -47,6 +49,8 @@ final class EventBroadcaster implements AutoCloseable {
     }
 
     synchronized void publish(CanonicalEvent event) {
+        if (event.type().equals("onAir")) onAir = event;
+        if (event.type().equals("device") && Boolean.FALSE.equals(event.payload().get("active"))) onAir = null;
         Object player = event.payload().get("player");
         if (player instanceof Integer number) {
             Map<String, CanonicalEvent> deck = latest.computeIfAbsent(number, ignored -> new LinkedHashMap<>());

@@ -11,6 +11,7 @@ public final class BridgeRegressionTest {
     public static void main(String[] args) throws Exception {
         BeatLinkAdapter.configurePlayerNumber(new RunningCdj());
         checkStandardNumberSelection();
+        checkOnAirReception();
         var service = new DelayedService();
         check(!BeatLinkAdapter.startService(service), "false startup must not be reported as success");
         check(BeatLinkAdapter.startService(service), "startup can be retried after a late device appears");
@@ -152,6 +153,57 @@ public final class BridgeRegressionTest {
         check(Boolean.FALSE.equals(finderType.getMethod("isRunning").invoke(finder)), "no discovery service started");
     }
 
+    private static void checkOnAirReception() throws Exception {
+        var log = Files.createTempFile("prodj-onair-test", ".jsonl");
+        try (var broadcaster = new EventBroadcaster(log)) {
+            var sink = new RecordingSink();
+            broadcaster.add(sink);
+            var adapter = new BeatLinkAdapter(broadcaster);
+            Class<?> finderType = Class.forName("org.deepsymmetry.beatlink.BeatFinder");
+            Object finder = finderType.getMethod("getInstance").invoke(null);
+            Class<?> listenerType = Class.forName("org.deepsymmetry.beatlink.OnAirListener");
+            var previousListeners = java.util.Set.copyOf((java.util.Set<?>) finderType.getMethod("getOnAirListeners").invoke(finder));
+            adapter.registerOnAirListener(finder);
+            adapter.registerOnAirListener(finder);
+            check(((java.util.Set<?>) finderType.getMethod("getOnAirListeners").invoke(finder)).size() == previousListeners.size() + 1, "one on-air subscription");
+            Method decode = finderType.getDeclaredMethod("getAudibleChannels", java.net.DatagramPacket.class);
+            decode.setAccessible(true);
+            Method deliver = finderType.getDeclaredMethod("deliverOnAirUpdate", java.util.Set.class);
+            deliver.setAccessible(true);
+            Method announcement = BeatLinkAdapter.class.getDeclaredMethod("handleDeviceAnnouncement", Method.class, Object.class);
+            announcement.setAccessible(true);
+            // No announced devices: delayed callbacks after total device loss must not restore old state.
+            deliver.invoke(finder, java.util.Set.of(1));
+            check(sink.messages.isEmpty(), "ignore on-air callback without connected devices");
+            announcement.invoke(adapter, FakeAnnouncement.class.getMethod("deviceFound"), new FakeAnnouncement());
+            byte[] bytes = new byte[45];
+            bytes[0x24] = 1; bytes[0x25] = 1;
+            deliver.invoke(finder, decode.invoke(null, new java.net.DatagramPacket(bytes, bytes.length)));
+            check(sink.messages.getLast().contains("\"channels\":[1,2]"), "real decoder and listener report channels 1 and 2");
+            var reconnect = new RecordingSink();
+            broadcaster.add(reconnect);
+            check(reconnect.messages.stream().anyMatch(message -> message.contains("\"channels\":[1,2]")), "reconnect restores on-air channels");
+            bytes[0x24] = 0; bytes[0x25] = 0;
+            deliver.invoke(finder, decode.invoke(null, new java.net.DatagramPacket(bytes, bytes.length)));
+            check(sink.messages.getLast().contains("\"channels\":[]"), "silence is an empty set, not unknown");
+            byte[] extended = new byte[53];
+            extended[46] = 1;
+            deliver.invoke(finder, decode.invoke(null, new java.net.DatagramPacket(extended, extended.length)));
+            check(sink.messages.getLast().contains("\"channels\":[6]"), "extended channel six supported");
+            announcement.invoke(adapter, FakeAnnouncement.class.getMethod("deviceLost"), new FakeAnnouncement());
+            check(sink.messages.getLast().contains("\"channels\":null"), "device loss explicitly invalidates on-air state");
+            var lost = new RecordingSink();
+            broadcaster.add(lost);
+            check(lost.messages.stream().noneMatch(message -> message.contains("\"channels\":[")), "reconnect cannot restore stale channels");
+            int count = sink.messages.size();
+            deliver.invoke(finder, java.util.Set.of(1));
+            check(sink.messages.size() == count, "late callback after loss ignored");
+            for (Object listener : (java.util.Set<?>) finderType.getMethod("getOnAirListeners").invoke(finder))
+                if (!previousListeners.contains(listener)) finderType.getMethod("removeOnAirListener", listenerType).invoke(finder, listener);
+            check(Boolean.FALSE.equals(finderType.getMethod("isRunning").invoke(finder)), "no beat finder service started");
+        } finally { Files.deleteIfExists(log); }
+    }
+
     /** Exercise beat-link's real packet decoder and our registered listener, without opening sockets. */
     private static void checkRealMixerDecoder(BeatLinkAdapter adapter, RecordingSink sink) throws Exception {
         Class<?> cdjType = Class.forName("org.deepsymmetry.beatlink.VirtualCdj");
@@ -265,6 +317,7 @@ public final class BridgeRegressionTest {
     }
     public static final class FakeAnnouncement {
         public void deviceFound() {}
+        public void deviceLost() {}
         public int getDeviceNumber() { return 1; }
         public String getDeviceName() { return "XDJ-XZ"; }
         public java.net.InetAddress getAddress() throws Exception { return java.net.InetAddress.getByName("192.168.178.47"); }

@@ -30,6 +30,15 @@ export const beatEventSchema = payloadEnvelopeSchema.extend({
   })
 });
 
+// beat-link's OnAirListener exposes the channel set, without sender identity.
+export const onAirEventSchema = payloadEnvelopeSchema.extend({
+  type: z.literal('onAir'),
+  payload: z.object({
+    channels: z.array(z.number().int().min(1).max(6)).refine(channels => new Set(channels).size === channels.length).nullable()
+  })
+});
+export type OnAirEvent = z.infer<typeof onAirEventSchema>;
+
 // Mixer status is distinct from a deck beat and from Beat FX settings.
 export const mixerEventSchema = payloadEnvelopeSchema.extend({
   type: z.literal('mixer'),
@@ -134,6 +143,7 @@ export const ignoredEventSchema = payloadEnvelopeSchema.extend({
 export const prodjLinkEventSchema = z.discriminatedUnion('type', [
   deviceEventSchema,
   mixerEventSchema,
+  onAirEventSchema,
   beatEventSchema,
   trackEventSchema,
   structureEventSchema,

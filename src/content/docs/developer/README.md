@@ -255,3 +255,30 @@ Regression tests exercise the installed beat-link allocator with synthetic
 announcements: occupied 1/2, occupied 1/2/3, all standard numbers occupied, and
 all candidate numbers occupied. No discovery or virtual-player service is
 started, and no socket is bound or used to send traffic.
+
+### Channels on air
+
+The bridge subscribes once to beat-link's existing `BeatFinder.addOnAirListener`.
+The v2 `onAir` event contains `{ channels: [1, 2] }`, an empty array when no
+channel is reported audible, or `null` when the state is unknown. Supported
+channel numbers are 1–6, including the extended six-channel packet variant.
+This describes reported mixer audibility, independently of deck playing/paused
+state. It does not measure audio level.
+
+The listener exposes only the channel set, not the source address or mixer
+number. The event is therefore session-wide and displayed separately in the
+Mixer column, without assigning it to a specific mixer. Missing `MixerStatus`
+packets do not prevent on-air display. The UI shows `None` for an empty report
+and `-` for unknown state.
+
+Any device loss conservatively invalidates the channel set in the bridge cache
+and emits an explicit unknown event. On-air callbacks are ignored while there
+are no announced devices. Fresh reports restore state; browser transport loss
+and session/replay reset also clear it. Timestamps reject older reports after
+invalidation. New WebSocket subscribers receive the latest valid on-air state.
+
+Tests cover the real beat-link decoder/listener path without starting services,
+channel changes, silence, extended channel 6, device loss and cached reconnects,
+as well as the shared live/replay reducer and transport disconnect handling.
+Java changes require a user-controlled restart of `npm run dev` before hardware
+verification.

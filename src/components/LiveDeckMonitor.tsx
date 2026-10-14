@@ -52,13 +52,26 @@ export default function LiveDeckMonitor({ source }: { source?: EventSource }) {
       <section class="deck-grid" aria-label="Player">
         {decks.slice(0, 2).map((deck) => <DeckCardView key={deck.player} deck={deck} />)}
         <aside class="mixer-column" aria-label="Mixer">
-          {mixers.length ? mixers.map((event) => (
+          <OnAirCard channels={snapshot.onAir?.payload.channels ?? null} />
+          {mixers.map((event) => (
             <MixerCard key={event.payload.player} event={event} device={snapshot.decks.find((deck) => deck.player === event.payload.player)?.device ?? null} />
-          )) : <article class="deck-card"><header><p class="eyebrow">Mixer</p><h2>No mixer status received</h2></header><p>Waiting for mixer data from the bridge.</p></article>}
+          ))}
         </aside>
         {decks.slice(2).map((deck) => <DeckCardView key={deck.player} deck={deck} />)}
       </section>
     </>
+  );
+}
+
+function OnAirCard({ channels }: { channels: number[] | null }) {
+  return (
+    <article class="deck-card mixer-card on-air-card" aria-label="Mixer on-air channels">
+      <header><p class="eyebrow">Mixer</p><h2>Channels on air</h2></header>
+      <dl class="facts">
+        <Fact label="On-air channels" value={channels === null ? '-' : channels.length ? channels.map(channel => `CH ${channel}`).join(', ') : 'None'} fullWidth />
+      </dl>
+      <p class="mixer-note">{channels === null ? 'Waiting for on-air data from the bridge.' : 'Reported mixer channel state; independent of track playback.'}</p>
+    </article>
   );
 }
 
