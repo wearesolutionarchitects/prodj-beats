@@ -2,7 +2,7 @@ import type { EventObserver, EventSource } from '../application/event-source';
 
 export class WebSocketEventSource implements EventSource {
   constructor(
-    private readonly url = 'ws://127.0.0.1:8787/events',
+    private readonly url = '/events',
     private readonly createSocket = (url: string): WebSocket => new WebSocket(url),
     private readonly reconnectMs = 1500
   ) {}

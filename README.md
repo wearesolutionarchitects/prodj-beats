@@ -13,6 +13,21 @@ codebase.
 
 Run `npm run dev` and open `http://localhost:4325`. The dev server uses a fixed
 port and fails if it is occupied instead of moving to another project’s port.
+The server listens on the local network. On another device in the same network,
+open `http://macstudio.local:4325/?source=replay` (or use the Mac Studio's LAN IP).
+
+Astro can keep a dev server running in the background. If `npm run dev` reports
+an existing server, use its URL or restart it with:
+
+```bash
+npm run dev -- stop
+npm run dev
+```
+
+For live hardware data, also run `npm run bridge:run` on the Mac Studio. The
+browser connects to `/events` on the UI host; the dev server proxies WebSocket
+traffic to `ws://127.0.0.1:8787/events`. The bridge can stay bound to loopback.
+A separately hosted production UI needs an equivalent WebSocket proxy.
 
 ## Current Scope
 

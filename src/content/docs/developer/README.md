@@ -151,7 +151,8 @@ explains the missing runtime dependencies.
 parser/reducer path. The UI owns rendering only; socket lifecycle and replay
 scheduling live in `src/infrastructure/event-sources.ts`.
 
-- Default UI: live bridge at `ws://127.0.0.1:8787/events`.
+- Default UI: same-origin `/events`, proxied by the dev server to the local
+  bridge at `ws://127.0.0.1:8787/events`. Production hosting needs the same proxy.
 - `http://localhost:4325/?source=replay`: built-in fixtures at 20× speed,
   without a bridge. Completion preserves the result; restarting resets state.
 - `npm run fixture:replay`: synchronous fixture replay through that same path.

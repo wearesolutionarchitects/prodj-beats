@@ -126,3 +126,15 @@ test('socket error blocks late events immediately and close schedules no duplica
   context.mock.timers.tick(100);
   assert.equal(sockets.length, 2);
 });
+
+
+test('default live source uses the page origin through the development proxy', () => {
+  const socket = new FakeSocket();
+  let requestedUrl = '';
+  const stop = new WebSocketEventSource(undefined, (url) => {
+    requestedUrl = url;
+    return socket as unknown as WebSocket;
+  }).subscribe({ event: () => {}, status: () => {}, error: assert.fail });
+  assert.equal(requestedUrl, '/events');
+  stop();
+});
