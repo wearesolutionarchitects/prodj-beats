@@ -200,7 +200,7 @@ and projects that make this work possible and inspire its development.
 - [evanpurkhiser / prolink-connect](https://github.com/evanpurkhiser/prolink-connect) –
   offene ProDJ-Link-Implementierung / an open ProDJ Link implementation.
 
-Special thanks to **evanpurkhiser, Maddix, Morgan Page, nichi, profbx,
+Special thanks to **[brunchboy](https://github.com/brunchboy), evanpurkhiser, Maddix, Morgan Page, nichi, profbx,
 Sean Tyas, shiz, syl, trancejesus, xorbxbx, and [AlphaTheta](https://alphatheta.com/)**.
 
 Die Danksagung stellt keine offizielle Beteiligung oder Unterstützung dar.
