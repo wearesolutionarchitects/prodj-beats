@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { connectedDevices, ProDjLinkSession, type SessionSnapshot } from '../application/session';
 import { playbackTime, formatTime } from '../domain/playback-time';
+import type { MixerEvent } from '../domain/events';
 import type { DeckState } from '../domain/deck';
 
 import { observeSession, type EventSource, type SourceStatus } from '../application/event-source';
@@ -18,6 +19,10 @@ export default function LiveDeckMonitor({ source }: { source?: EventSource }) {
       : new WebSocketEventSource());
     return observeSession(selected, session, setSnapshot, setStatus);
   }, [session, source]);
+
+  // HMR can retain a snapshot created before the mixer field was added.
+  const mixers = snapshot.mixers ?? [];
+  const decks = snapshot.decks.filter((deck) => deck.player >= 1 && deck.player <= 6 && (deck.player <= 2 || deck.device?.active));
 
   return (
     <>
@@ -45,11 +50,41 @@ export default function LiveDeckMonitor({ source }: { source?: EventSource }) {
       </section>
 
       <section class="deck-grid" aria-label="Player">
-        {snapshot.decks.filter((deck) => deck.player >= 1 && deck.player <= 6 && (deck.player <= 2 || deck.device?.active)).map((deck) => (
-          <DeckCardView key={deck.player} deck={deck} />
-        ))}
+        {decks.slice(0, 2).map((deck) => <DeckCardView key={deck.player} deck={deck} />)}
+        <aside class="mixer-column" aria-label="Mixer">
+          {mixers.length ? mixers.map((event) => (
+            <MixerCard key={event.payload.player} event={event} device={snapshot.decks.find((deck) => deck.player === event.payload.player)?.device ?? null} />
+          )) : <article class="deck-card"><header><p class="eyebrow">Mixer</p><h2>No mixer status received</h2></header><p>Waiting for mixer data from the bridge.</p></article>}
+        </aside>
+        {decks.slice(2).map((deck) => <DeckCardView key={deck.player} deck={deck} />)}
       </section>
     </>
+  );
+}
+
+function MixerCard({ event, device }: { event: MixerEvent; device: DeckState['device'] }) {
+  const mixer = event.payload;
+  const flag = (value: boolean | null) => value === null ? '-' : value ? 'Yes' : 'No';
+  return (
+    <article class="deck-card mixer-card" data-mixer={mixer.player}>
+      <header class="deck-card__header">
+        <div><p class="eyebrow">Mixer</p><h2>{device?.name ?? 'Mixer'}</h2></div>
+        <span class="status status--active">online</span>
+      </header>
+      <dl class="facts">
+        <Fact label="LAN address" value={device?.address ?? '-'} fullWidth />
+        <Fact label="Device number" value={mixer.player} />
+        <Fact label="BPM" value={mixer.bpm?.toFixed(2) ?? '-'} />
+        <Fact label="Effective BPM" value={mixer.tempo?.toFixed(2) ?? '-'} />
+        <Fact label="Pitch" value={mixer.pitchPercent === null ? '-' : `${mixer.pitchPercent.toFixed(2)} %`} />
+        <Fact label="Tempo master" value={flag(mixer.master)} />
+        <Fact label="Sync" value={flag(mixer.synced)} />
+        <Fact label="Beat in bar (reported)" value={mixer.beatWithinBar ?? '-'} />
+        <Fact label="Beat reliable" value={flag(mixer.beatMeaningful)} />
+        <Fact label="Master handoff to device" value={mixer.masterHandoff ?? '-'} fullWidth />
+      </dl>
+      <p class="mixer-note">Mixer status — Beat FX settings are not available via this connection.</p>
+    </article>
   );
 }
 

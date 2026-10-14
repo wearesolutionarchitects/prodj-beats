@@ -57,8 +57,30 @@ public final class BridgeRegressionTest {
             var lost = new RecordingSink();
             broadcaster.add(lost);
             check(lost.messages.size() == 1 && lost.messages.getFirst().contains("\"active\":false"), "device loss clears snapshot");
+            adapter.publishMixerStatus(new FakeMixer());
+            check(sink.messages.getLast().contains("\"bpm\":139.9") &&
+                    sink.messages.getLast().contains("\"beatMeaningful\":false"), "mixer mapping and reliability");
+            var mixerReconnect = new RecordingSink();
+            broadcaster.add(mixerReconnect);
+            check(mixerReconnect.messages.stream().anyMatch(message -> message.contains("\"type\":\"mixer\"")), "reconnect includes mixer status");
+            broadcaster.publish(new CanonicalEvent("device", 2, 3, Map.of("player", 33, "active", false, "name", "XDJ-XZ")));
+            var mixerLost = new RecordingSink();
+            broadcaster.add(mixerLost);
+            check(mixerLost.messages.stream().noneMatch(message -> message.contains("\"type\":\"mixer\"")), "lost mixer clears cached status");
         } finally { Files.deleteIfExists(log); }
         System.out.println("Bridge regression checks passed.");
+    }
+
+    public static final class FakeMixer {
+        public int getDeviceNumber() { return 33; }
+        public int getBpm() { return 13990; }
+        public double getEffectiveTempo() { return 139.9; }
+        public int getPitch() { return 1048576; }
+        public int getBeatWithinBar() { return 1; }
+        public boolean isBeatWithinBarMeaningful() { return false; }
+        public boolean isTempoMaster() { return false; }
+        public boolean isSynced() { return true; }
+        public Integer getDeviceMasterIsBeingYieldedTo() { return null; }
     }
 
     private static Map<String, Object> source(int id) { return Map.of("id", id, "player", 2, "slot", "USB_SLOT"); }

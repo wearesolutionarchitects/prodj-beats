@@ -44,6 +44,8 @@ final class BeatLinkAdapter implements AutoCloseable {
             startDeviceFinder();
             startBeatFinder();
             Object virtualCdj = singleton("org.deepsymmetry.beatlink.VirtualCdj");
+            registerListener(virtualCdj, "addUpdateListener",
+                    "org.deepsymmetry.beatlink.DeviceUpdateListener", this::handleMixerStatus);
             if (!Boolean.TRUE.equals(firstValue(virtualCdj, "isRunning"))) {
                 servicesReady = false;
                 Object devices = firstValue(singleton("org.deepsymmetry.beatlink.DeviceFinder"), "getCurrentDevices");
@@ -254,6 +256,32 @@ final class BeatLinkAdapter implements AutoCloseable {
         Object address = firstValue(announcement, "getAddress");
         payload.put("address", address instanceof InetAddress ip ? ip.getHostAddress() : null);
         broadcaster.publish(new CanonicalEvent("device", 2, System.currentTimeMillis(), payload));
+    }
+
+    private synchronized void handleMixerStatus(Method method, Object status) {
+        if (!status.getClass().getSimpleName().equals("MixerStatus")) return;
+        publishMixerStatus(status);
+    }
+
+    // Separate mapping also permits regression checks without runtime beat-link JARs.
+    void publishMixerStatus(Object status) {
+        int player = intValue(status, "getDeviceNumber");
+        if (player <= 0) return;
+        int bpm = intValue(status, "getBpm");
+        double tempo = doubleValue(status, "getEffectiveTempo");
+        int pitch = intValue(status, "getPitch");
+        int beat = intValue(status, "getBeatWithinBar");
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("player", player);
+        payload.put("bpm", bpm > 0 && bpm != 65535 ? bpm / 100.0 : null);
+        payload.put("tempo", bpm > 0 && bpm != 65535 && Double.isFinite(tempo) && tempo > 0 ? tempo : null);
+        payload.put("pitchPercent", pitch >= 0 ? (pitch / 1048576.0 - 1) * 100 : null);
+        payload.put("master", booleanValue(status, "isTempoMaster"));
+        payload.put("synced", booleanValue(status, "isSynced"));
+        payload.put("beatWithinBar", beat >= 1 && beat <= 4 ? beat : null);
+        payload.put("beatMeaningful", booleanValue(status, "isBeatWithinBarMeaningful"));
+        payload.put("masterHandoff", firstValue(status, "getDeviceMasterIsBeingYieldedTo"));
+        broadcaster.publish(new CanonicalEvent("mixer", 2, System.currentTimeMillis(), payload));
     }
 
     private synchronized void handleBeat(Method method, Object beat) {

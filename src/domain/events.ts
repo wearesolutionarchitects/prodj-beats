@@ -30,6 +30,23 @@ export const beatEventSchema = payloadEnvelopeSchema.extend({
   })
 });
 
+// Mixer status is distinct from a deck beat and from Beat FX settings.
+export const mixerEventSchema = payloadEnvelopeSchema.extend({
+  type: z.literal('mixer'),
+  payload: z.object({
+    player: z.number().int().positive(),
+    bpm: z.number().positive().nullable(),
+    tempo: z.number().positive().nullable(),
+    pitchPercent: z.number().nullable(),
+    master: z.boolean().nullable(),
+    synced: z.boolean().nullable(),
+    beatWithinBar: z.number().int().min(1).max(4).nullable(),
+    beatMeaningful: z.boolean().nullable(),
+    masterHandoff: z.number().int().nonnegative().nullable()
+  })
+});
+export type MixerEvent = z.infer<typeof mixerEventSchema>;
+
 export const cueSchema = z.object({
   comment: z.string().default(''),
   ms: z.number().int().nonnegative()
@@ -116,6 +133,7 @@ export const ignoredEventSchema = payloadEnvelopeSchema.extend({
 
 export const prodjLinkEventSchema = z.discriminatedUnion('type', [
   deviceEventSchema,
+  mixerEventSchema,
   beatEventSchema,
   trackEventSchema,
   structureEventSchema,

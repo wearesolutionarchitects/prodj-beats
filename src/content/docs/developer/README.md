@@ -201,3 +201,22 @@ The replay fixtures include a seek to 20 seconds before the end.
 so a pause updates the UI too. Missing status stays unknown; it is not inferred
 from an unchanged time. It clears on track change and disconnect. The UI shows
 this track status next to device connectivity only when a track is loaded.
+
+### Mixer status
+
+The v2 `mixer` event comes from beat-link `MixerStatus` updates, separately from
+player beats. Its payload contains `player` (logical mixer device number),
+`bpm` (reported BPM divided by 100), `tempo` (effective BPM), `pitchPercent`,
+`master`, `synced`, `beatWithinBar`, `beatMeaningful`, and `masterHandoff`
+(target device number, or `null` when no handoff is reported). Unknown values
+remain `null`; the BPM sentinel `65535` is not displayed as a tempo.
+
+The monitor places mixer status in a third column after Players 1 and 2 and
+stacks cards on small screens. Device announcements provide the name and LAN
+address. Mixer device 33 is never rendered as a player deck. Status is cached
+for WebSocket reconnects and cleared on device loss or transport disconnect.
+Replay exercises the same parser and session reducer.
+
+These values are not Beat FX settings. Tempo-master status does not identify
+the selected FX channel, and a mixer beat marked non-meaningful is displayed
+with its reliability flag rather than treated as a synchronized beat.

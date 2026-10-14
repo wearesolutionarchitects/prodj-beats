@@ -1,14 +1,17 @@
 import { Deck, type DeckState, type PlayerId, type Device } from '../domain/deck';
-import { EventParser, type ProDjLinkEvent } from '../domain/events';
+import { EventParser, type MixerEvent, type ProDjLinkEvent } from '../domain/events';
 
 export interface SessionSnapshot {
   decks: DeckState[];
+  mixers: MixerEvent[];
   lastEvent: ProDjLinkEvent | null;
   messages: string[];
 }
 
 export class ProDjLinkSession {
   private readonly decks = new Map<PlayerId, Deck>();
+  private readonly mixers = new Map<PlayerId, MixerEvent>();
+  private readonly mixerWatermarks = new Map<PlayerId, number>();
   private readonly parser = new EventParser();
   private lastEvent: ProDjLinkEvent | null = null;
   private readonly messages: string[] = [];
@@ -24,7 +27,17 @@ export class ProDjLinkSession {
   apply(event: ProDjLinkEvent): SessionSnapshot {
     this.lastEvent = event;
 
+    if (event.type === 'mixer' && event.ms >= (this.mixerWatermarks.get(event.payload.player) ?? 0)) {
+      this.mixers.set(event.payload.player, event);
+      this.mixerWatermarks.set(event.payload.player, event.ms);
+    }
+
     if (event.type === 'device') {
+      const player = event.payload.player;
+      if (!event.payload.active && event.ms >= (this.mixerWatermarks.get(player) ?? 0)) {
+        this.mixers.delete(player);
+        this.mixerWatermarks.set(player, event.ms);
+      }
       this.deck(event.payload.player).updateDevice(event);
     }
 
@@ -63,6 +76,8 @@ export class ProDjLinkSession {
 
   reset(): SessionSnapshot {
     this.decks.clear();
+    this.mixers.clear();
+    this.mixerWatermarks.clear();
     this.players.forEach((player) => this.decks.set(player, new Deck(player)));
     this.messages.length = 0;
     this.lastEvent = null;
@@ -71,6 +86,8 @@ export class ProDjLinkSession {
 
   disconnect(): SessionSnapshot {
     this.decks.forEach((deck) => deck.disconnect());
+    this.mixers.clear();
+    this.mixerWatermarks.clear();
     this.lastEvent = null;
     return this.snapshot();
   }
@@ -78,6 +95,7 @@ export class ProDjLinkSession {
   snapshot(): SessionSnapshot {
     return {
       decks: [...this.decks.values()].map((deck) => deck.snapshot()),
+      mixers: structuredClone([...this.mixers.values()]),
       lastEvent: this.lastEvent,
       messages: this.messages.slice(0, 5)
     };

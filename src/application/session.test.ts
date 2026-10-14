@@ -140,3 +140,27 @@ test('connected hardware is deduplicated by LAN address and disappears on discon
   assert.equal(connectedDevices(session.snapshot()).length, 2);
   assert.deepEqual(connectedDevices(session.disconnect()), []);
 });
+
+test('mixer status stays separate, rejects stale updates and clears on loss, disconnect and reset', () => {
+  const session = new ProDjLinkSession();
+  const event = { type: 'mixer', version: 2, ms: 10, payload: {
+    player: 33, bpm: 139.9, tempo: 139.9, pitchPercent: 0, master: false,
+    synced: true, beatWithinBar: 3, beatMeaningful: false, masterHandoff: null
+  }};
+  session.applyRaw(event);
+  assert.equal(session.snapshot().mixers[0]?.payload.bpm, 139.9);
+  assert.equal(session.snapshot().decks.some(deck => deck.player === 33), false);
+  session.applyRaw({ ...event, ms: 9, payload: { ...event.payload, bpm: 100 } });
+  assert.equal(session.snapshot().mixers[0]?.payload.bpm, 139.9);
+  session.applyRaw({ type: 'device', version: 2, ms: 11, payload: { player: 33, name: 'XDJ-XZ', active: false } });
+  session.applyRaw(event);
+  assert.equal(session.snapshot().mixers.length, 0);
+  session.applyRaw({ ...event, ms: 12 });
+  assert.equal(session.snapshot().mixers.length, 1);
+  session.disconnect();
+  assert.equal(session.snapshot().mixers.length, 0);
+  session.applyRaw(event);
+  session.reset();
+  assert.equal(session.snapshot().mixers.length, 0);
+  assert.throws(() => session.applyRaw({ ...event, payload: { ...event.payload, bpm: 0 } }));
+});
