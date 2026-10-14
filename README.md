@@ -2,6 +2,14 @@
 
 **[Deutsch](#deutsch) · [English](#english)**
 
+![ProDJ Beats: Live-Anzeige mit zwei Decks und Mixer-Masterdaten / Live display with two decks and mixer master data](docs/images/prodj-beats-live.png)
+
+*Live-Daten eines XDJ-XZ im Browser: zwei Decks und Tempo-Master im Überblick.
+Geräteadressen sind für diesen Screenshot ausgeblendet.*
+
+*Live XDJ-XZ data in the browser: two decks and the tempo master at a glance.
+Device addresses are hidden in this screenshot.*
+
 ## Deutsch
 
 ProDJ Beats ergänzt vorhandene DJ-Hardware um eine größere Live-Anzeige im
