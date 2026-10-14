@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import { ProDjLinkSession, type SessionSnapshot } from '../application/session';
+import { connectedDevices, ProDjLinkSession, type SessionSnapshot } from '../application/session';
 import type { DeckState } from '../domain/deck';
 
 import { observeSession, type EventSource, type SourceStatus } from '../application/event-source';
@@ -25,9 +25,21 @@ export default function LiveDeckMonitor({ source }: { source?: EventSource }) {
           <p class="eyebrow">ProDJ Beats</p>
           <h1>ProDJ Link Monitor</h1>
         </div>
-        <div class={`session-pill session-pill--${status}`}>
-          <span class="pulse" aria-hidden="true" />
-          {status === 'live' ? 'Live bridge' : status === 'connecting' ? 'Connecting' : status === 'replay' ? 'Replay' : status === 'complete' ? 'Replay complete' : 'Offline'}
+        <div class="connection-summary">
+          <div class={`session-pill session-pill--${status}`}>
+            <span class="pulse" aria-hidden="true" />
+            {status === 'live' ? 'Live bridge' : status === 'connecting' ? 'Connecting' : status === 'replay' ? 'Replay' : status === 'complete' ? 'Replay complete' : 'Offline'}
+          </div>
+          {status === 'live' && (
+            <ul class="connected-devices" aria-label="Connected devices">
+              {connectedDevices(snapshot).map((device) => (
+                <li key={device.address!}>
+                  <span>{device.name}</span>
+                  <span class="device-address">{device.address}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </section>
 

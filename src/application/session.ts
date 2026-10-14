@@ -1,4 +1,4 @@
-import { Deck, type DeckState, type PlayerId } from '../domain/deck';
+import { Deck, type DeckState, type PlayerId, type Device } from '../domain/deck';
 import { EventParser, type ProDjLinkEvent } from '../domain/events';
 
 export interface SessionSnapshot {
@@ -86,4 +86,13 @@ export class ProDjLinkSession {
 
     return this.decks.get(player)!;
   }
+}
+
+// An all-in-one controller announces multiple logical players at one LAN address.
+export function connectedDevices(snapshot: SessionSnapshot): Device[] {
+  const devices = new Map<string, Device>();
+  for (const { device } of snapshot.decks) {
+    if (device?.active && device.address) devices.set(device.address, device);
+  }
+  return [...devices.values()];
 }

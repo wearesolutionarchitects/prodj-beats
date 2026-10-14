@@ -287,3 +287,40 @@ h2 {
     grid-template-columns: 1fr;
   }
 }
+
+
+.connection-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.connected-devices {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--color-text-subtle);
+  font-size: 0.85rem;
+}
+
+.connected-devices li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.25rem 0.75rem;
+}
+
+.device-address {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .connection-summary { align-items: flex-start; }
+  .connected-devices li { justify-content: flex-start; }
+}

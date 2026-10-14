@@ -5,6 +5,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.nio.ByteBuffer;
+import java.net.InetAddress;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -203,16 +204,13 @@ final class BeatLinkAdapter implements AutoCloseable {
         }
 
         if (method.getName().toLowerCase().contains("lost")) sourcesByPlayer.remove(player);
-        broadcaster.publish(new CanonicalEvent(
-                "device",
-                2,
-                System.currentTimeMillis(),
-                Map.of(
-                        "active", !method.getName().toLowerCase().contains("lost"),
-                        "name", name == null ? "Unknown Device" : name,
-                        "player", player
-                )
-        ));
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("active", !method.getName().toLowerCase().contains("lost"));
+        payload.put("name", name == null ? "Unknown Device" : name);
+        payload.put("player", player);
+        Object address = firstValue(announcement, "getAddress");
+        payload.put("address", address instanceof InetAddress ip ? ip.getHostAddress() : null);
+        broadcaster.publish(new CanonicalEvent("device", 2, System.currentTimeMillis(), payload));
     }
 
     private synchronized void handleBeat(Method method, Object beat) {

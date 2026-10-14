@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ProDjLinkSession } from './session';
+import { connectedDevices, ProDjLinkSession } from './session';
 import { fixtureEvents } from '../infrastructure/fixtures';
 
 test('reduces ProDJ Link events into deck state', () => {
@@ -128,4 +128,15 @@ test('older beats and device-loss announcements cannot overwrite newer live stat
   assert.equal(deck(session).beat?.trackBeat, 22);
   assert.equal(deck(session).device?.active, true);
   assert.ok(deck(session).track);
+});
+
+test('connected hardware is deduplicated by LAN address and disappears on disconnect', () => {
+  const session = new ProDjLinkSession();
+  for (const player of [1, 2, 33]) session.applyRaw({ type: 'device', version: 2, ms: 1,
+    payload: { player, name: 'XDJ-XZ', address: '192.168.178.47', active: true } });
+  assert.equal(connectedDevices(session.snapshot()).length, 1);
+  session.applyRaw({ type: 'device', version: 2, ms: 2,
+    payload: { player: 3, name: 'XDJ-XZ', address: '192.168.178.48', active: true } });
+  assert.equal(connectedDevices(session.snapshot()).length, 2);
+  assert.deepEqual(connectedDevices(session.disconnect()), []);
 });

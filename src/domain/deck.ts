@@ -3,6 +3,7 @@ import type { BeatEvent, DeviceEvent, StructureEvent, TrackEvent, ArtEvent, Trac
 export type PlayerId = number;
 
 export interface Device {
+  address: string | null;
   active: boolean;
   name: string;
   player: PlayerId;
@@ -83,6 +84,7 @@ export class Deck {
     if (!this.accept(event)) return;
     this.state.device = {
       ...event.payload,
+      address: event.payload.address ?? null,
       updatedAt: event.ms
     };
     if (!event.payload.active) {
@@ -192,6 +194,7 @@ export class Deck {
 
     this.state.device = {
       active: true,
+      address: null,
       name: `Player ${player}`,
       player,
       updatedAt

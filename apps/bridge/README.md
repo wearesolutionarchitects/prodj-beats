@@ -102,3 +102,7 @@ updates the web UI only; Java changes require restarting the bridge. Initial
 metadata/artwork may arrive after beat packets while the player's database is
 being fetched. Two network adapters on the same subnet can cause duplicate
 packets; beat-link reports this in its console diagnostics.
+
+Device announcements also include `address`, the discovered device IP address
+(or `null` if unavailable). The live header groups active announcements by IP,
+so an XDJ-XZ's logical player announcements appear as one connected device.

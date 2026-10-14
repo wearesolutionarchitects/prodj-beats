@@ -11,6 +11,7 @@ export const deviceEventSchema = payloadEnvelopeSchema.extend({
   type: z.literal('device'),
   payload: z.object({
     active: z.boolean(),
+    address: z.string().ip().nullable().optional(),
     name: z.string(),
     player: z.number().int().positive()
   })

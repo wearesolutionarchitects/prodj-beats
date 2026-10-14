@@ -18,6 +18,10 @@ public final class BridgeRegressionTest {
             var sink = new RecordingSink();
             broadcaster.add(sink);
             var adapter = new BeatLinkAdapter(broadcaster);
+            Method announcementHandler = BeatLinkAdapter.class.getDeclaredMethod("handleDeviceAnnouncement", Method.class, Object.class);
+            announcementHandler.setAccessible(true);
+            announcementHandler.invoke(adapter, FakeAnnouncement.class.getMethod("deviceFound"), new FakeAnnouncement());
+            check(sink.messages.getLast().contains("\"address\":\"192.168.178.47\""), "device LAN address emitted");
             invoke(adapter, "handleBeat", new FakeBeat());
             check(sink.messages.getLast().contains("\"beatWithinBar\":3"), "beat in bar");
             check(sink.messages.getLast().contains("\"trackBeat\":null"), "no invented absolute beat without status");
@@ -27,13 +31,14 @@ public final class BridgeRegressionTest {
             invoke(adapter, "handleTrackMetadata", new MetadataUpdate(new Metadata(11)));
             var reconnect = new RecordingSink();
             broadcaster.add(reconnect);
-            check(reconnect.messages.size() == 1 && reconnect.messages.getFirst().contains("\"id\":11"),
+            check(reconnect.messages.stream().anyMatch(message -> message.contains("\"id\":11")) &&
+                    reconnect.messages.stream().noneMatch(message -> message.contains("\"jpg\":\"old\"") || message.contains("\"type\":\"beat\"")),
                     "reconnect snapshot excludes previous track artwork and beat");
             invoke(adapter, "handleTrackMetadata", new MetadataUpdate(null));
             check(sink.messages.getLast().contains("\"source\":null"), "metadata loss emits explicit clearing event");
             var unloaded = new RecordingSink();
             broadcaster.add(unloaded);
-            check(unloaded.messages.size() == 1 && unloaded.messages.getFirst().contains("\"source\":null"), "unloaded snapshot");
+            check(unloaded.messages.stream().anyMatch(message -> message.contains("\"source\":null")), "unloaded snapshot");
             broadcaster.publish(new CanonicalEvent("device", 2, 2, Map.of("player", 1, "active", false, "name", "CDJ")));
             var lost = new RecordingSink();
             broadcaster.add(lost);
@@ -55,6 +60,12 @@ public final class BridgeRegressionTest {
         final List<String> messages = new ArrayList<>();
         public void send(String message) { messages.add(message); }
         public void close() {}
+    }
+    public static final class FakeAnnouncement {
+        public void deviceFound() {}
+        public int getDeviceNumber() { return 1; }
+        public String getDeviceName() { return "XDJ-XZ"; }
+        public java.net.InetAddress getAddress() throws Exception { return java.net.InetAddress.getByName("192.168.178.47"); }
     }
     public static final class DelayedService {
         private int attempts;
