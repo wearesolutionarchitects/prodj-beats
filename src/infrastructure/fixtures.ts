@@ -1,6 +1,10 @@
 import type { ProDjLinkEvent } from '../domain/events';
 
 export const fixtureEvents: ProDjLinkEvent[] = [
+  { type: 'master', version: 2, ms: 1725728557000, payload: {
+    player: 1, tempo: 129.92, bpm: 128, pitchPercent: 1.5, beatWithinBar: 1,
+    synced: true, bpmOnlySynced: false, handoff: null
+  } },
   { type: 'onAir', version: 2, ms: 1725728557000, payload: { channels: [1, 2] } },
   { type: 'device', version: 2, ms: 1725728557000,
     payload: { active: true, name: 'XDJ-XZ', player: 33, address: '192.168.178.47' } },
@@ -78,6 +82,11 @@ export const fixtureEvents: ProDjLinkEvent[] = [
       player: 1,
       tempo: 129.92
     }
+  },
+  {
+    type: 'master', version: 2, ms: 1725728634353,
+    payload: { player: 1, tempo: 129.92, bpm: 128, pitchPercent: 1.5,
+      beatWithinBar: 3, synced: true, bpmOnlySynced: false, handoff: null }
   },
   {
     type: 'device',

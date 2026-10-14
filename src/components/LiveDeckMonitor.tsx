@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import { connectedDevices, ProDjLinkSession, type SessionSnapshot } from '../application/session';
+import { connectedDevices, masterTempo, ProDjLinkSession, type SessionSnapshot } from '../application/session';
 import { playbackTime, formatTime } from '../domain/playback-time';
 import type { MixerEvent } from '../domain/events';
 import type { DeckState } from '../domain/deck';
@@ -26,11 +26,24 @@ export default function LiveDeckMonitor({ source }: { source?: EventSource }) {
 
   return (
     <>
-      <section class="topbar" aria-label="Session status">
-        <div>
-          <p class="eyebrow">ProDJ Beats</p>
-          <h1>ProDJ Link Monitor</h1>
-        </div>
+      <h1 class="sr-only">ProDJ Link Monitor</h1>
+
+      <section class="deck-grid" aria-label="Player">
+        {decks.slice(0, 2).map((deck) => <DeckCardView key={deck.player} deck={deck} />)}
+        <aside class="mixer-column" aria-label="Mixer">
+          <OnAirCard channels={snapshot.onAir?.payload.channels ?? null} snapshot={snapshot} status={status} />
+          {mixers.map((event) => (
+            <MixerCard key={event.payload.player} event={event} device={snapshot.decks.find((deck) => deck.player === event.payload.player)?.device ?? null} />
+          ))}
+        </aside>
+        {decks.slice(2).map((deck) => <DeckCardView key={deck.player} deck={deck} />)}
+      </section>
+    </>
+  );
+}
+
+function ConnectionSummary({ snapshot, status }: { snapshot: SessionSnapshot; status: SourceStatus }) {
+  return (
         <div class="connection-summary">
           <div class={`session-pill session-pill--${status}`}>
             <span class="pulse" aria-hidden="true" />
@@ -47,27 +60,28 @@ export default function LiveDeckMonitor({ source }: { source?: EventSource }) {
             </ul>
           )}
         </div>
-      </section>
-
-      <section class="deck-grid" aria-label="Player">
-        {decks.slice(0, 2).map((deck) => <DeckCardView key={deck.player} deck={deck} />)}
-        <aside class="mixer-column" aria-label="Mixer">
-          <OnAirCard channels={snapshot.onAir?.payload.channels ?? null} />
-          {mixers.map((event) => (
-            <MixerCard key={event.payload.player} event={event} device={snapshot.decks.find((deck) => deck.player === event.payload.player)?.device ?? null} />
-          ))}
-        </aside>
-        {decks.slice(2).map((deck) => <DeckCardView key={deck.player} deck={deck} />)}
-      </section>
-    </>
   );
 }
 
-function OnAirCard({ channels }: { channels: number[] | null }) {
+function OnAirCard({ channels, snapshot, status }: { channels: number[] | null; snapshot: SessionSnapshot; status: SourceStatus }) {
+  const master = masterTempo(snapshot);
   return (
     <article class="deck-card mixer-card on-air-card" aria-label="Mixer on-air channels">
-      <header><p class="eyebrow">Mixer</p><h2>Channels on air</h2></header>
+      <header><h2>Mixer</h2></header>
+      <ConnectionSummary snapshot={snapshot} status={status} />
       <dl class="facts">
+        <Fact label="Master BPM" value={master?.tempo == null ? '-' : `${master.tempo.toFixed(2)} BPM`} fullWidth />
+        <Fact label="Tempo source" value={master ? `Player ${master.player}` : '-'} fullWidth />
+        <div class="fact--wide">
+          <dt>Beat in bar</dt>
+          <dd class="master-beats" aria-label={master?.beatWithinBar ? `Beat ${master.beatWithinBar} of 4` : 'Beat unknown'}>
+            {[1, 2, 3, 4].map(beat => <span key={beat} class={master?.beatWithinBar === beat ? 'master-beat master-beat--active' : 'master-beat'}>{beat}</span>)}
+          </dd>
+        </div>
+        <Fact label="Base BPM" value={master?.bpm?.toFixed(2) ?? '-'} />
+        <Fact label="Pitch" value={master?.pitchPercent == null ? '-' : `${master.pitchPercent > 0 ? '+' : ''}${master.pitchPercent.toFixed(2)} %`} />
+        <Fact label="Sync" value={master?.synced == null ? '-' : master.synced ? master.bpmOnlySynced === true ? 'BPM sync' : master.bpmOnlySynced === false ? 'Beat sync' : 'Synced' : 'Off'} fullWidth />
+        {master?.handoff != null && <Fact label="Master handoff" value={`To Player ${master.handoff}`} fullWidth />}
         <Fact label="On-air channels" value={channels === null ? '-' : channels.length ? channels.map(channel => `CH ${channel}`).join(', ') : 'None'} fullWidth />
       </dl>
       <p class="mixer-note">{channels === null ? 'Waiting for on-air data from the bridge.' : 'Reported mixer channel state; independent of track playback.'}</p>
@@ -94,7 +108,7 @@ function MixerCard({ event, device }: { event: MixerEvent; device: DeckState['de
         <Fact label="Sync" value={flag(mixer.synced)} />
         <Fact label="Beat in bar (reported)" value={mixer.beatWithinBar ?? '-'} />
         <Fact label="Beat reliable" value={flag(mixer.beatMeaningful)} />
-        <Fact label="Master handoff to device" value={mixer.masterHandoff ?? '-'} fullWidth />
+        {mixer.masterHandoff != null && mixer.masterHandoff > 0 && mixer.masterHandoff !== 255 && <Fact label="Master handoff to device" value={mixer.masterHandoff} fullWidth />}
       </dl>
       <p class="mixer-note">Mixer status — Beat FX settings are not available via this connection.</p>
     </article>

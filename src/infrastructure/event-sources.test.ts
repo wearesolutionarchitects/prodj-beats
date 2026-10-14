@@ -144,3 +144,26 @@ test('default live source uses the page origin through the development proxy', (
   assert.equal(requestedUrl, '/events');
   stop();
 });
+
+ test('live and replay preserve every master transition and clear on transport loss', () => {
+  const events = [
+    { player: 1, tempo: 126, bpm: 120, pitchPercent: 5, beatWithinBar: 1, synced: true, bpmOnlySynced: false, handoff: null },
+    { player: 1, tempo: 126, bpm: 120, pitchPercent: 5, beatWithinBar: 4, synced: true, bpmOnlySynced: true, handoff: 2 },
+    { player: 2, tempo: 96, bpm: 96, pitchPercent: 0, beatWithinBar: 2, synced: false, bpmOnlySynced: false, handoff: null },
+    { player: null, tempo: null, bpm: null, pitchPercent: null, beatWithinBar: null, synced: null, bpmOnlySynced: null, handoff: null }
+  ].map((payload, ms) => ({ type: 'master', version: 2, ms: ms + 1, payload }));
+  const replay = new ProDjLinkSession(), live = new ProDjLinkSession();
+  const replayStates: unknown[] = [], liveStates: unknown[] = [];
+  observeSession(new ReplayEventSource(events, 0), replay, state => replayStates.push(state.master), () => {});
+  const socket = new FakeSocket();
+  const stop = observeSession(new WebSocketEventSource('ws://test', () => socket as unknown as WebSocket), live,
+    state => liveStates.push(state.master), () => {});
+  socket.dispatchEvent(new Event('open'));
+  events.forEach(event => socket.message(event));
+  assert.deepEqual(liveStates.filter(Boolean), replayStates.filter(Boolean));
+  assert.deepEqual(live.snapshot(), replay.snapshot());
+  socket.message(events[2]);
+  socket.close();
+  assert.equal(live.snapshot().master, null);
+  stop();
+});

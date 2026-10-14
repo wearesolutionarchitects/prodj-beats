@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { connectedDevices, ProDjLinkSession } from './session';
+import { connectedDevices, masterTempo, ProDjLinkSession } from './session';
 import { fixtureEvents } from '../infrastructure/fixtures';
 
 test('reduces ProDJ Link events into deck state', () => {
@@ -191,4 +191,26 @@ test('on-air reports replace the channel set, distinguish silence from unknown a
   assert.throws(() => session.applyRaw(event(20, [0])));
   assert.throws(() => session.applyRaw(event(20, [7])));
   assert.throws(() => session.applyRaw(event(20, [1, 1])));
+});
+
+test('master reports reject stale events and clear on device loss, disconnect and reset', () => {
+  const session = new ProDjLinkSession();
+  const report = (player: number | null, ms: number, handoff: number | null = null) => session.apply({
+    type: 'master', version: 2, ms, payload: { player, tempo: player ? 126 : null, bpm: player ? 120 : null,
+      pitchPercent: player ? 5 : null, beatWithinBar: player ? 3 : null, synced: player ? true : null,
+      bpmOnlySynced: player ? false : null, handoff }
+  });
+  assert.equal(masterTempo(session.snapshot()), null);
+  assert.equal(masterTempo(report(1, 10, 2))?.handoff, 2);
+  assert.equal(masterTempo(report(2, 20))?.player, 2);
+  assert.equal(masterTempo(report(1, 15))?.player, 2);
+  assert.equal(masterTempo(session.snapshot())?.handoff, null);
+  session.apply({ type: 'device', version: 2, ms: 21, payload: { player: 2, active: false, name: 'XDJ-XZ' } });
+  assert.equal(masterTempo(session.snapshot()), null);
+  assert.equal(masterTempo(report(2, 19)), null);
+  report(1, 22);
+  assert.equal(masterTempo(session.disconnect()), null);
+  report(1, 23);
+  assert.equal(masterTempo(session.reset()), null);
+  assert.equal(masterTempo(report(null, 24)), null);
 });

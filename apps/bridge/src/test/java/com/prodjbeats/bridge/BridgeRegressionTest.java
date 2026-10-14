@@ -236,6 +236,32 @@ public final class BridgeRegressionTest {
                 sink.messages.getLast().contains("\"bpm\":139.9"), "decoded mixer reaches canonical bridge event");
         check(sink.messages.stream().anyMatch(message -> message.contains("decoded MixerStatus for device 33 (56 bytes)")),
                 "reception diagnostic identifies decoded type and device");
+        Class<?> masterListener = Class.forName("org.deepsymmetry.beatlink.MasterListener");
+        var previousMasters = java.util.Set.copyOf((java.util.Set<?>) cdjType.getMethod("getMasterListeners").invoke(cdj));
+        adapter.registerMasterListener(cdj);
+        adapter.registerMasterListener(cdj);
+        check(((java.util.Set<?>) cdjType.getMethod("getMasterListeners").invoke(cdj)).size() == previousMasters.size() + 1,
+                "one master subscription");
+        Method masterChanged = cdjType.getDeclaredMethod("deliverMasterChangedAnnouncement", Class.forName("org.deepsymmetry.beatlink.DeviceUpdate"));
+        masterChanged.setAccessible(true);
+        masterChanged.invoke(cdj, status);
+        check(sink.messages.getLast().contains("\"type\":\"master\"") && sink.messages.getLast().contains("\"bpm\":139.9"),
+                "real master callback publishes full state");
+        check(sink.messages.getLast().contains("\"beatWithinBar\":null"), "unreliable mixer beat suppressed");
+        var reconnect = new RecordingSink();
+        broadcasterFor(adapter).add(reconnect);
+        check(reconnect.messages.stream().anyMatch(message -> message.contains("\"type\":\"master\"")), "master cached for reconnect");
+        Method tempoChanged = cdjType.getDeclaredMethod("deliverTempoChangedAnnouncement", double.class);
+        tempoChanged.setAccessible(true);
+        tempoChanged.invoke(cdj, 142.5);
+        check(sink.messages.getLast().contains("\"tempo\":142.5"), "tempo callback updates effective BPM");
+        masterChanged.invoke(cdj, new Object[] { null });
+        check(sink.messages.getLast().contains("\"player\":null"), "missing master explicitly clears state");
+        for (Object listener : (java.util.Set<?>) cdjType.getMethod("getMasterListeners").invoke(cdj))
+            if (!previousMasters.contains(listener)) cdjType.getMethod("removeMasterListener", masterListener).invoke(cdj, listener);
+        adapter.publishMaster(new FakeMaster(), null, null);
+        check(sink.messages.getLast().contains("\"pitchPercent\":4.999") && sink.messages.getLast().contains("\"handoff\":2"), "master pitch and handoff mapped");
+        check(sink.messages.getLast().contains("\"beatWithinBar\":4") && sink.messages.getLast().contains("\"bpmOnlySynced\":true"), "master beat and sync mapped");
         int count = sink.messages.size();
         deliver.invoke(cdj, status);
         check(sink.messages.size() == count + 1, "repeated packets do not flood diagnostic logs");
@@ -265,6 +291,24 @@ public final class BridgeRegressionTest {
         public boolean isRunning() { return true; }
         public void setUseStandardPlayerNumber(boolean value) { throw new AssertionError("must not reconfigure a running device"); }
         public void setDeviceNumber(byte value) { throw new AssertionError("must not change a running device number"); }
+    }
+
+    private static EventBroadcaster broadcasterFor(BeatLinkAdapter adapter) throws Exception {
+        var field = BeatLinkAdapter.class.getDeclaredField("broadcaster");
+        field.setAccessible(true);
+        return (EventBroadcaster) field.get(adapter);
+    }
+
+    public static final class FakeMaster {
+        public int getDeviceNumber() { return 1; }
+        public int getBpm() { return 12000; }
+        public double getEffectiveTempo() { return 126; }
+        public int getPitch() { return 1101004; }
+        public int getBeatWithinBar() { return 4; }
+        public boolean isBeatWithinBarMeaningful() { return true; }
+        public boolean isSynced() { return true; }
+        public boolean isBpmOnlySynced() { return true; }
+        public Integer getDeviceMasterIsBeingYieldedTo() { return 2; }
     }
 
     public static final class FakeMixer {

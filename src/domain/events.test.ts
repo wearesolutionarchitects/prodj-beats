@@ -27,3 +27,9 @@ test('requires asset identity and supports explicit unload and artwork removal',
   assert.doesNotThrow(() => parser.parse({ type: 'track', version: 2, ms: 1, payload: { player: 1, source: null } }));
   assert.doesNotThrow(() => parser.parse({ type: 'art', version: 2, ms: 1, payload: { player: 1, source: { id: 1, player: 2, slot: 'USB' }, jpg: null } }));
 });
+
+ test('master contract rejects invalid beat, tempo and handoff values', () => {
+  const event = fixtureEvents.find(event => event.type === 'master')!;
+  for (const patch of [{ beatWithinBar: 5 }, { bpm: 0 }, { tempo: -1 }, { handoff: 0 }])
+    assert.throws(() => parser.parse({ ...event, payload: { ...event.payload, ...patch } }));
+});

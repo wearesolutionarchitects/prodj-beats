@@ -27,6 +27,7 @@ final class BeatLinkAdapter implements AutoCloseable {
         return thread;
     });
     private boolean servicesReady;
+    private Object currentMaster;
     private final Map<Integer, Long> announcedAt = new HashMap<>();
     private final Set<Integer> statusReceived = new HashSet<>();
     private final Set<String> statusTypesReceived = new HashSet<>();
@@ -50,6 +51,7 @@ final class BeatLinkAdapter implements AutoCloseable {
             startBeatFinder();
             Object virtualCdj = singleton("org.deepsymmetry.beatlink.VirtualCdj");
             registerStatusListener(virtualCdj);
+            registerMasterListener(virtualCdj);
             if (!Boolean.TRUE.equals(firstValue(virtualCdj, "isRunning"))) {
                 servicesReady = false;
                 Object devices = firstValue(singleton("org.deepsymmetry.beatlink.DeviceFinder"), "getCurrentDevices");
@@ -293,6 +295,11 @@ final class BeatLinkAdapter implements AutoCloseable {
         payload.put("player", player);
         Object address = firstValue(announcement, "getAddress");
         payload.put("address", address instanceof InetAddress ip ? ip.getHostAddress() : null);
+        if (method.getName().toLowerCase().contains("lost") && currentMaster != null &&
+                player == intValue(currentMaster, "getDeviceNumber")) {
+            currentMaster = null;
+            publishMaster(null, null, null);
+        }
         broadcaster.publish(new CanonicalEvent("device", 2, System.currentTimeMillis(), payload));
         if (!Boolean.TRUE.equals(payload.get("active"))) {
             Map<String, Object> unknown = new LinkedHashMap<>();
@@ -318,6 +325,10 @@ final class BeatLinkAdapter implements AutoCloseable {
                     " bytes) from " + stringValue(status, "getAddress")));
         }
         if (type.equals("MixerStatus")) publishMixerStatus(status);
+        if (currentMaster != null && player == intValue(currentMaster, "getDeviceNumber")) {
+            currentMaster = status;
+            publishMaster(status, null, null);
+        }
     }
 
     synchronized void reportMissingStatus(long now) {
@@ -332,10 +343,54 @@ final class BeatLinkAdapter implements AutoCloseable {
         }
     }
 
+    void registerMasterListener(Object virtualCdj) throws ReflectiveOperationException {
+        registerListener(virtualCdj, "addMasterListener", "org.deepsymmetry.beatlink.MasterListener",
+                this::handleMaster);
+    }
+
+    private synchronized void handleMaster(Method method, Object value) {
+        switch (method.getName()) {
+            case "masterChanged" -> {
+                currentMaster = value;
+                publishMaster(value, null, null);
+            }
+            case "tempoChanged" -> {
+                if (currentMaster != null && value instanceof Number tempo)
+                    publishMaster(currentMaster, tempo.doubleValue(), null);
+            }
+            case "newBeat" -> {
+                if (currentMaster != null && intValue(value, "getDeviceNumber") == intValue(currentMaster, "getDeviceNumber"))
+                    publishMaster(currentMaster, doubleValue(value, "getEffectiveTempo"), intValue(value, "getBeatWithinBar"));
+            }
+            default -> { }
+        }
+    }
+
+    void publishMaster(Object status, Double tempo, Integer beat) {
+        Map<String, Object> payload = statusPayload(status);
+        payload.remove("master");
+        Object meaningful = payload.remove("beatMeaningful");
+        payload.put("handoff", payload.remove("masterHandoff"));
+        if (status == null) payload.put("player", null);
+        payload.put("bpmOnlySynced", booleanValue(status, "isBpmOnlySynced"));
+        if (tempo != null) payload.put("tempo", Double.isFinite(tempo) && tempo > 0 ? tempo : null);
+        if (beat != null) payload.put("beatWithinBar", Boolean.TRUE.equals(meaningful) && beat >= 1 && beat <= 4 ? beat : null);
+        else if (!Boolean.TRUE.equals(meaningful)) payload.put("beatWithinBar", null);
+        Object handoff = payload.get("handoff");
+        if (!(handoff instanceof Number number) || number.intValue() <= 0 || number.intValue() == 255 ||
+                handoff.equals(payload.get("player"))) payload.put("handoff", null);
+        broadcaster.publish(new CanonicalEvent("master", 2, System.currentTimeMillis(), payload));
+    }
+
     // Separate mapping also permits regression checks without runtime beat-link JARs.
     void publishMixerStatus(Object status) {
         int player = intValue(status, "getDeviceNumber");
         if (player <= 0) return;
+        broadcaster.publish(new CanonicalEvent("mixer", 2, System.currentTimeMillis(), statusPayload(status)));
+    }
+
+    private Map<String, Object> statusPayload(Object status) {
+        int player = intValue(status, "getDeviceNumber");
         int bpm = intValue(status, "getBpm");
         double tempo = doubleValue(status, "getEffectiveTempo");
         int pitch = intValue(status, "getPitch");
@@ -344,13 +399,13 @@ final class BeatLinkAdapter implements AutoCloseable {
         payload.put("player", player);
         payload.put("bpm", bpm > 0 && bpm != 65535 ? bpm / 100.0 : null);
         payload.put("tempo", bpm > 0 && bpm != 65535 && Double.isFinite(tempo) && tempo > 0 ? tempo : null);
-        payload.put("pitchPercent", pitch >= 0 ? (pitch / 1048576.0 - 1) * 100 : null);
+        payload.put("pitchPercent", pitch > 0 ? (pitch / 1048576.0 - 1) * 100 : null);
         payload.put("master", booleanValue(status, "isTempoMaster"));
         payload.put("synced", booleanValue(status, "isSynced"));
         payload.put("beatWithinBar", beat >= 1 && beat <= 4 ? beat : null);
         payload.put("beatMeaningful", booleanValue(status, "isBeatWithinBarMeaningful"));
         payload.put("masterHandoff", firstValue(status, "getDeviceMasterIsBeingYieldedTo"));
-        broadcaster.publish(new CanonicalEvent("mixer", 2, System.currentTimeMillis(), payload));
+        return payload;
     }
 
     private synchronized void handleBeat(Method method, Object beat) {

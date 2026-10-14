@@ -56,6 +56,21 @@ export const mixerEventSchema = payloadEnvelopeSchema.extend({
 });
 export type MixerEvent = z.infer<typeof mixerEventSchema>;
 
+export const masterEventSchema = payloadEnvelopeSchema.extend({
+  type: z.literal('master'),
+  payload: z.object({
+    player: z.number().int().positive().nullable(),
+    tempo: z.number().positive().nullable(),
+    bpm: z.number().positive().nullable(),
+    pitchPercent: z.number().nullable(),
+    beatWithinBar: z.number().int().min(1).max(4).nullable(),
+    synced: z.boolean().nullable(),
+    bpmOnlySynced: z.boolean().nullable(),
+    handoff: z.number().int().positive().nullable()
+  })
+});
+export type MasterEvent = z.infer<typeof masterEventSchema>;
+
 export const cueSchema = z.object({
   comment: z.string().default(''),
   ms: z.number().int().nonnegative()
@@ -143,6 +158,7 @@ export const ignoredEventSchema = payloadEnvelopeSchema.extend({
 export const prodjLinkEventSchema = z.discriminatedUnion('type', [
   deviceEventSchema,
   mixerEventSchema,
+  masterEventSchema,
   onAirEventSchema,
   beatEventSchema,
   trackEventSchema,

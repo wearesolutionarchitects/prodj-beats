@@ -1,10 +1,11 @@
 import { Deck, type DeckState, type PlayerId, type Device } from '../domain/deck';
-import { EventParser, type MixerEvent, type OnAirEvent, type ProDjLinkEvent } from '../domain/events';
+import { EventParser, type MasterEvent, type MixerEvent, type OnAirEvent, type ProDjLinkEvent } from '../domain/events';
 
 export interface SessionSnapshot {
   decks: DeckState[];
   mixers: MixerEvent[];
   onAir: OnAirEvent | null;
+  master: MasterEvent | null;
   lastEvent: ProDjLinkEvent | null;
   messages: string[];
 }
@@ -14,6 +15,8 @@ export class ProDjLinkSession {
   private readonly mixers = new Map<PlayerId, MixerEvent>();
   private onAir: OnAirEvent | null = null;
   private onAirSince = 0;
+  private master: MasterEvent | null = null;
+  private masterSince = 0;
   private readonly mixerWatermarks = new Map<PlayerId, number>();
   private readonly parser = new EventParser();
   private lastEvent: ProDjLinkEvent | null = null;
@@ -30,6 +33,11 @@ export class ProDjLinkSession {
   apply(event: ProDjLinkEvent): SessionSnapshot {
     this.lastEvent = event;
 
+    if (event.type === 'master' && event.ms >= this.masterSince) {
+      this.master = event;
+      this.masterSince = event.ms;
+    }
+
     if (event.type === 'onAir' && event.ms >= this.onAirSince) {
       this.onAir = event;
       this.onAirSince = event.ms;
@@ -42,6 +50,10 @@ export class ProDjLinkSession {
 
     if (event.type === 'device') {
       const player = event.payload.player;
+      if (!event.payload.active && this.master?.payload.player === player && event.ms >= this.masterSince) {
+        this.master = null;
+        this.masterSince = event.ms;
+      }
       // The listener has no sender identity, so invalidate conservatively on device loss.
       if (!event.payload.active && event.ms >= this.onAirSince) {
         this.onAir = null;
@@ -92,6 +104,8 @@ export class ProDjLinkSession {
     this.mixers.clear();
     this.onAir = null;
     this.onAirSince = 0;
+    this.master = null;
+    this.masterSince = 0;
     this.mixerWatermarks.clear();
     this.players.forEach((player) => this.decks.set(player, new Deck(player)));
     this.messages.length = 0;
@@ -104,6 +118,8 @@ export class ProDjLinkSession {
     this.mixers.clear();
     this.onAir = null;
     this.onAirSince = 0;
+    this.master = null;
+    this.masterSince = 0;
     this.mixerWatermarks.clear();
     this.lastEvent = null;
     return this.snapshot();
@@ -114,6 +130,7 @@ export class ProDjLinkSession {
       decks: [...this.decks.values()].map((deck) => deck.snapshot()),
       mixers: structuredClone([...this.mixers.values()]),
       onAir: structuredClone(this.onAir),
+      master: structuredClone(this.master),
       lastEvent: this.lastEvent,
       messages: this.messages.slice(0, 5)
     };
@@ -126,6 +143,11 @@ export class ProDjLinkSession {
 
     return this.decks.get(player)!;
   }
+}
+
+export function masterTempo(snapshot: SessionSnapshot) {
+  const master = snapshot.master?.payload;
+  return master?.player == null ? null : master;
 }
 
 // An all-in-one controller announces multiple logical players at one LAN address.
