@@ -27,6 +27,10 @@ final class BeatLinkAdapter implements AutoCloseable {
         return thread;
     });
     private boolean servicesReady;
+    private final Map<Integer, Long> announcedAt = new HashMap<>();
+    private final Set<Integer> statusReceived = new HashSet<>();
+    private final Set<String> statusTypesReceived = new HashSet<>();
+    private final Set<Integer> missingStatusReported = new HashSet<>();
     private final Map<Integer, Map<String, Object>> sourcesByPlayer = new HashMap<>();
 
     BeatLinkAdapter(EventBroadcaster broadcaster) {
@@ -37,6 +41,7 @@ final class BeatLinkAdapter implements AutoCloseable {
         broadcaster.publish(CanonicalEvent.sys(202, "Waiting for players, status and metadata services"));
         startup.scheduleWithFixedDelay(this::startServices, 0, 5, TimeUnit.SECONDS);
         startup.scheduleWithFixedDelay(this::publishPositions, 0, 250, TimeUnit.MILLISECONDS);
+        startup.scheduleWithFixedDelay(() -> reportMissingStatus(System.currentTimeMillis()), 15, 15, TimeUnit.SECONDS);
     }
 
     private void startServices() {
@@ -44,8 +49,7 @@ final class BeatLinkAdapter implements AutoCloseable {
             startDeviceFinder();
             startBeatFinder();
             Object virtualCdj = singleton("org.deepsymmetry.beatlink.VirtualCdj");
-            registerListener(virtualCdj, "addUpdateListener",
-                    "org.deepsymmetry.beatlink.DeviceUpdateListener", this::handleMixerStatus);
+            registerStatusListener(virtualCdj);
             if (!Boolean.TRUE.equals(firstValue(virtualCdj, "isRunning"))) {
                 servicesReady = false;
                 Object devices = firstValue(singleton("org.deepsymmetry.beatlink.DeviceFinder"), "getCurrentDevices");
@@ -248,7 +252,15 @@ final class BeatLinkAdapter implements AutoCloseable {
             return;
         }
 
-        if (method.getName().toLowerCase().contains("lost")) sourcesByPlayer.remove(player);
+        if (method.getName().toLowerCase().contains("lost")) {
+            sourcesByPlayer.remove(player);
+            announcedAt.remove(player);
+            statusReceived.remove(player);
+            missingStatusReported.remove(player);
+            statusTypesReceived.removeIf(key -> key.startsWith(player + ":"));
+        } else {
+            announcedAt.putIfAbsent(player, System.currentTimeMillis());
+        }
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("active", !method.getName().toLowerCase().contains("lost"));
         payload.put("name", name == null ? "Unknown Device" : name);
@@ -258,9 +270,35 @@ final class BeatLinkAdapter implements AutoCloseable {
         broadcaster.publish(new CanonicalEvent("device", 2, System.currentTimeMillis(), payload));
     }
 
+    void registerStatusListener(Object virtualCdj) throws ReflectiveOperationException {
+        registerListener(virtualCdj, "addUpdateListener",
+                "org.deepsymmetry.beatlink.DeviceUpdateListener", this::handleMixerStatus);
+    }
+
     private synchronized void handleMixerStatus(Method method, Object status) {
-        if (!status.getClass().getSimpleName().equals("MixerStatus")) return;
-        publishMixerStatus(status);
+        if (status == null) return;
+        int player = intValue(status, "getDeviceNumber");
+        String type = status.getClass().getSimpleName();
+        statusReceived.add(player);
+        if (statusTypesReceived.add(player + ":" + type)) {
+            Object bytes = firstValue(status, "getPacketBytes");
+            broadcaster.publish(CanonicalEvent.sys(200, "beat-link decoded " + type +
+                    " for device " + player + " (" + (bytes instanceof byte[] packet ? packet.length : "unknown") +
+                    " bytes) from " + stringValue(status, "getAddress")));
+        }
+        if (type.equals("MixerStatus")) publishMixerStatus(status);
+    }
+
+    synchronized void reportMissingStatus(long now) {
+        if (!servicesReady) return;
+        for (Map.Entry<Integer, Long> entry : announcedAt.entrySet()) {
+            int player = entry.getKey();
+            if (now - entry.getValue() >= 15000 && !statusReceived.contains(player) && missingStatusReported.add(player)) {
+                broadcaster.publish(CanonicalEvent.sys(202, "Device " + player +
+                        " announced, but no status decoded by beat-link after 15 seconds; " +
+                        "this does not prove that no packets were sent"));
+            }
+        }
     }
 
     // Separate mapping also permits regression checks without runtime beat-link JARs.

@@ -220,3 +220,17 @@ Replay exercises the same parser and session reducer.
 These values are not Beat FX settings. Tempo-master status does not identify
 the selected FX channel, and a mixer beat marked non-meaningful is displayed
 with its reliability flag rather than treated as a synchronized beat.
+
+Mixer reception diagnostics use the existing beat-link update listener and VS Code
+logs. The first decoded status per device/type reports the class, packet length
+and source address. An announced device without any decoded status after 15
+seconds is reported once, after services become ready. This distinguishes an
+announcement from actual status reception; it cannot prove absence of packets
+on the wire. Device loss clears the diagnostic markers.
+
+`npm run bridge:test` uses the installed runtime JARs to pass a synthetic 56-byte
+mixer packet through the real beat-link decoder and registered bridge listener.
+This test opens no sockets and does not establish live XDJ-XZ packet reception.
+A passive capture on the connected interface is needed to distinguish packets
+not sent from packets rejected before listener delivery; macOS requires BPF
+capture permissions (normally `sudo tcpdump`).

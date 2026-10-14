@@ -18,6 +18,13 @@ public final class BridgeRegressionTest {
             var sink = new RecordingSink();
             broadcaster.add(sink);
             var adapter = new BeatLinkAdapter(broadcaster);
+            // Real decoder gets an isolated broadcaster so its snapshot cannot affect other tests.
+            var decoderLog = Files.createTempFile("prodj-decoder-test", ".jsonl");
+            try (var decoderBroadcaster = new EventBroadcaster(decoderLog)) {
+                var decoderSink = new RecordingSink();
+                decoderBroadcaster.add(decoderSink);
+                checkRealMixerDecoder(new BeatLinkAdapter(decoderBroadcaster), decoderSink);
+            } finally { Files.deleteIfExists(decoderLog); }
             Method playback = BeatLinkAdapter.class.getDeclaredMethod("playbackStatus", Object.class, Map.class);
             playback.setAccessible(true);
             for (String state : List.of("playing", "paused", "cued", "ended", "stopped"))
@@ -69,6 +76,63 @@ public final class BridgeRegressionTest {
             check(mixerLost.messages.stream().noneMatch(message -> message.contains("\"type\":\"mixer\"")), "lost mixer clears cached status");
         } finally { Files.deleteIfExists(log); }
         System.out.println("Bridge regression checks passed.");
+    }
+
+    /** Exercise beat-link's real packet decoder and our registered listener, without opening sockets. */
+    private static void checkRealMixerDecoder(BeatLinkAdapter adapter, RecordingSink sink) throws Exception {
+        Class<?> cdjType = Class.forName("org.deepsymmetry.beatlink.VirtualCdj");
+        Object cdj = cdjType.getMethod("getInstance").invoke(null);
+        adapter.registerStatusListener(cdj);
+        adapter.registerStatusListener(cdj);
+        check(((java.util.Set<?>) cdjType.getMethod("getUpdateListeners").invoke(cdj)).size() == 1,
+                "status listener registered exactly once");
+        byte[] bytes = new byte[56];
+        System.arraycopy("Qspt1WmJOL".getBytes(java.nio.charset.StandardCharsets.US_ASCII), 0, bytes, 0, 10);
+        bytes[10] = 0x29; // Mixer status on UDP 50002.
+        System.arraycopy("XDJ-XZ".getBytes(java.nio.charset.StandardCharsets.US_ASCII), 0, bytes, 11, 6);
+        bytes[0x21] = 33;
+        bytes[0x23] = 20;
+        bytes[0x24] = 33;
+        bytes[0x27] = (byte) 0xd0;
+        bytes[0x29] = 0x10; // Neutral pitch: 0x00100000.
+        bytes[0x2e] = 0x36; bytes[0x2f] = (byte) 0xa6; // 139.90 BPM.
+        bytes[0x36] = (byte) 0xff;
+        bytes[0x37] = 3;
+        Method decode = cdjType.getDeclaredMethod("buildUpdate", java.net.DatagramPacket.class);
+        decode.setAccessible(true);
+        Object status = decode.invoke(cdj, new java.net.DatagramPacket(bytes, bytes.length,
+                java.net.InetAddress.getByName("192.168.178.47"), 50002));
+        check(status.getClass().getSimpleName().equals("MixerStatus"), "real decoder recognizes mixer packet");
+        Method deliver = cdjType.getDeclaredMethod("deliverDeviceUpdate", Class.forName("org.deepsymmetry.beatlink.DeviceUpdate"));
+        deliver.setAccessible(true);
+        deliver.invoke(cdj, status);
+        check(sink.messages.getLast().contains("\"type\":\"mixer\"") &&
+                sink.messages.getLast().contains("\"bpm\":139.9"), "decoded mixer reaches canonical bridge event");
+        check(sink.messages.stream().anyMatch(message -> message.contains("decoded MixerStatus for device 33 (56 bytes)")),
+                "reception diagnostic identifies decoded type and device");
+        int count = sink.messages.size();
+        deliver.invoke(cdj, status);
+        check(sink.messages.size() == count + 1, "repeated packets do not flood diagnostic logs");
+        for (Object listener : (java.util.Set<?>) cdjType.getMethod("getUpdateListeners").invoke(cdj))
+            cdjType.getMethod("removeUpdateListener", Class.forName("org.deepsymmetry.beatlink.DeviceUpdateListener")).invoke(cdj, listener);
+        check(!Boolean.TRUE.equals(cdjType.getMethod("isRunning").invoke(cdj)), "decoder test starts no network service");
+        java.lang.reflect.Field ready = BeatLinkAdapter.class.getDeclaredField("servicesReady");
+        ready.setAccessible(true);
+        ready.setBoolean(adapter, true);
+        java.lang.reflect.Field announced = BeatLinkAdapter.class.getDeclaredField("announcedAt");
+        announced.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<Integer, Long> devices = (Map<Integer, Long>) announced.get(adapter);
+        devices.put(33, 0L);
+        devices.put(34, 0L);
+        int before = sink.messages.size();
+        adapter.reportMissingStatus(14999);
+        check(sink.messages.size() == before, "missing status waits for grace period");
+        adapter.reportMissingStatus(15000);
+        check(sink.messages.size() == before + 1 && sink.messages.getLast().contains("Device 34 announced"),
+                "diagnostic distinguishes announcements from decoded status");
+        adapter.reportMissingStatus(30000);
+        check(sink.messages.size() == before + 1, "missing-status diagnostic is not repeated");
     }
 
     public static final class FakeMixer {
