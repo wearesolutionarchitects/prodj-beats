@@ -18,6 +18,12 @@ public final class BridgeRegressionTest {
             var sink = new RecordingSink();
             broadcaster.add(sink);
             var adapter = new BeatLinkAdapter(broadcaster);
+            Method playback = BeatLinkAdapter.class.getDeclaredMethod("playbackStatus", Object.class, Map.class);
+            playback.setAccessible(true);
+            for (String state : List.of("playing", "paused", "cued", "ended", "stopped"))
+                check(state.equals(playback.invoke(adapter, new FakeStatus(state), source(10))), "reported playback status: " + state);
+            check("unknown".equals(playback.invoke(adapter, new FakeStatus("playing"), source(11))), "stale status rejected");
+            check("unknown".equals(playback.invoke(adapter, null, source(10))), "missing status stays unknown");
             Method trackTime = BeatLinkAdapter.class.getDeclaredMethod("trackTime", Object.class, int.class, Map.class);
             trackTime.setAccessible(true);
             check(Long.valueOf(12345).equals(trackTime.invoke(adapter, new FakeTimeFinder(), 1, source(10))), "track time retains milliseconds");
@@ -68,6 +74,18 @@ public final class BridgeRegressionTest {
         final List<String> messages = new ArrayList<>();
         public void send(String message) { messages.add(message); }
         public void close() {}
+    }
+    public static final class FakeStatus {
+        private final String state;
+        FakeStatus(String state) { this.state = state; }
+        public int getRekordboxId() { return 10; }
+        public int getTrackSourcePlayer() { return 2; }
+        public String getTrackSourceSlot() { return "USB_SLOT"; }
+        public boolean isPlaying() { return state.equals("playing"); }
+        public boolean isPaused() { return state.equals("paused"); }
+        public boolean isCued() { return state.equals("cued"); }
+        public boolean isAtEnd() { return state.equals("ended"); }
+        public boolean isTrackLoaded() { return true; }
     }
     public static final class FakeTimeFinder {
         public FakePosition getLatestPositionFor(int player) { return new FakePosition(); }

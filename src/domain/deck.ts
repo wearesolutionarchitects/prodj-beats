@@ -59,6 +59,7 @@ export interface DeckState {
   structure: Structure | null;
   artworkDataUri: string | null;
   positionMs: number | null;
+  playbackStatus: NonNullable<PositionEvent['payload']['playbackStatus']>;
 }
 
 export class Deck {
@@ -74,6 +75,7 @@ export class Deck {
       track: null,
       structure: null,
       positionMs: null,
+      playbackStatus: 'unknown',
       artworkDataUri: null
     };
   }
@@ -148,6 +150,7 @@ export class Deck {
   updatePosition(event: PositionEvent): void {
     if (!this.accept(event)) return;
     this.state.positionMs = event.payload.positionMs;
+    this.state.playbackStatus = event.payload.playbackStatus ?? 'unknown';
   }
 
   updateArtwork(event: ArtEvent): void {
@@ -174,6 +177,7 @@ export class Deck {
 
   private clearTrack(): void {
     this.state.positionMs = null;
+    this.state.playbackStatus = 'unknown';
     this.state.track = null;
     this.state.beat = null;
     this.state.structure = null;

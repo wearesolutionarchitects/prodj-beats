@@ -75,11 +75,26 @@ final class BeatLinkAdapter implements AutoCloseable {
                 payload.put("player", player);
                 payload.put("source", entry.getValue());
                 payload.put("positionMs", milliseconds);
+                Object cdj = singleton("org.deepsymmetry.beatlink.VirtualCdj");
+                Object status = cdj.getClass().getMethod("getLatestStatusFor", int.class).invoke(cdj, player);
+                payload.put("playbackStatus", playbackStatus(status, entry.getValue()));
                 broadcaster.publish(new CanonicalEvent("position", 2, System.currentTimeMillis(), payload));
             }
         } catch (ReflectiveOperationException | RuntimeException ex) {
             broadcaster.publish(CanonicalEvent.error("Unable to read track position: " + describe(ex)));
         }
+    }
+
+    private String playbackStatus(Object status, Map<String, Object> source) {
+        // Status must describe the loaded track, not an earlier load on this deck.
+        if (intValue(status, "getRekordboxId") != ((Number) source.get("id")).intValue() ||
+                intValue(status, "getTrackSourcePlayer") != ((Number) source.get("player")).intValue() ||
+                !source.get("slot").equals(stringValue(status, "getTrackSourceSlot"))) return "unknown";
+        if (Boolean.TRUE.equals(booleanValue(status, "isPlaying"))) return "playing";
+        if (Boolean.TRUE.equals(booleanValue(status, "isCued"))) return "cued";
+        if (Boolean.TRUE.equals(booleanValue(status, "isAtEnd"))) return "ended";
+        if (Boolean.TRUE.equals(booleanValue(status, "isPaused"))) return "paused";
+        return Boolean.TRUE.equals(booleanValue(status, "isTrackLoaded")) ? "stopped" : "unknown";
     }
 
     private Long trackTime(Object finder, int player, Map<String, Object> source) throws ReflectiveOperationException {

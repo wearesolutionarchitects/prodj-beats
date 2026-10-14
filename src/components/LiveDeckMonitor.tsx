@@ -45,7 +45,7 @@ export default function LiveDeckMonitor({ source }: { source?: EventSource }) {
       </section>
 
       <section class="deck-grid" aria-label="Player">
-        {snapshot.decks.map((deck) => (
+        {snapshot.decks.filter((deck) => deck.player >= 1 && deck.player <= 6 && (deck.player <= 2 || deck.device?.active)).map((deck) => (
           <DeckCardView key={deck.player} deck={deck} />
         ))}
       </section>
@@ -64,9 +64,16 @@ function DeckCardView({ deck }: { deck: DeckState }) {
           <p class="eyebrow">Player {deck.player}</p>
           <h2>{deck.track?.title ?? 'No track loaded'}</h2>
         </div>
-        <span class={`status ${deck.device?.active ? 'status--active' : ''}`}>
-          {deck.device?.active ? 'online' : 'idle'}
-        </span>
+        <div class="deck-statuses">
+          <span class={`status ${deck.device?.active ? 'status--active' : ''}`}>
+            {deck.device?.active ? 'online' : 'idle'}
+          </span>
+          {deck.track && (
+            <span class={`status status--${deck.playbackStatus}`} aria-label="Track playback status">
+              {{ playing: 'Playing', paused: 'Paused', cued: 'Cued', ended: 'Ended', stopped: 'Stopped', unknown: 'Status unknown' }[deck.playbackStatus]}
+            </span>
+          )}
+        </div>
       </header>
 
       <div class="deck-card__body">

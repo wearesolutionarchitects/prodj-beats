@@ -335,3 +335,14 @@ h2 {
   .facts div { grid-column: 1 / -1; }
   .facts .fact--timing { grid-column: span 1; }
 }
+
+
+.deck-statuses {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+}
+.status--playing { color: var(--color-accent); border-color: var(--color-accent-border); }
+.status--paused, .status--cued { color: var(--color-accent-warm); }

@@ -91,7 +91,8 @@ export const fixtureEvents: ProDjLinkEvent[] = [
     payload: {
       player: 1,
       source: { id: 7216, player: 1, slot: 'SD_SLOT' },
-      positionMs: 295000
+      positionMs: 295000,
+      playbackStatus: 'playing'
     }
   }
 ];

@@ -193,3 +193,11 @@ minus position, clamped at zero. The remaining value turns red at exactly
 20,000 ms or less; unknown duration/position shows `-` without a warning.
 This is remaining track content, not a pitch-adjusted wall-clock countdown.
 The replay fixtures include a seek to 20 seconds before the end.
+
+
+`position.payload.playbackStatus` optionally carries `playing`, `paused`,
+`cued`, `ended`, `stopped`, or `unknown`. It is sampled from the latest
+`CdjStatus`, guarded by track source identity, independently of beat packets
+so a pause updates the UI too. Missing status stays unknown; it is not inferred
+from an unchanged time. It clears on track change and disconnect. The UI shows
+this track status next to device connectivity only when a track is loaded.

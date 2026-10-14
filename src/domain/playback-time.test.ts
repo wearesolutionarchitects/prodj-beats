@@ -42,3 +42,19 @@ test('seeks, unknown positions and track changes cannot leave stale time or warn
   session.disconnect();
   assert.equal(session.snapshot().decks[0]!.positionMs, null);
 });
+
+test('playback status follows player reports, changes while paused and clears with track state', () => {
+  const session = new ProDjLinkSession();
+  session.applyRaw(track);
+  const state = () => session.snapshot().decks[0]!.playbackStatus;
+  for (const [index, playbackStatus] of ['playing', 'paused', 'cued', 'ended'].entries()) {
+    session.applyRaw({ ...position(10_000, index + 2), payload: { ...position(10_000).payload, playbackStatus } });
+    assert.equal(state(), playbackStatus);
+  }
+  session.applyRaw({ ...position(10_000, 6), payload: { ...position(10_000).payload, source: { ...source, id: 99 }, playbackStatus: 'playing' } });
+  assert.equal(state(), 'ended');
+  session.applyRaw(position(10_000, 7));
+  assert.equal(state(), 'unknown');
+  session.disconnect();
+  assert.equal(state(), 'unknown');
+});

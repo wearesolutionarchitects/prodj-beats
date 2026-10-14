@@ -62,7 +62,8 @@ export const positionEventSchema = payloadEnvelopeSchema.extend({
   payload: z.object({
     player: z.number().int().positive(),
     source: sourceSchema,
-    positionMs: z.number().int().nonnegative().nullable()
+    positionMs: z.number().int().nonnegative().nullable(),
+    playbackStatus: z.enum(['playing', 'paused', 'cued', 'ended', 'stopped', 'unknown']).optional()
   })
 });
 
