@@ -1,125 +1,187 @@
 # ProDJ Beats
 
-ProDJ Beats is a cross-platform Astro and TypeScript web app for visualizing
-live Pioneer ProDJ Link state. The application consumes normalized event
-payloads, validates them with Zod and reduces them into a session state that
-the UI can render.
+**[Deutsch](#deutsch) · [English](#english)**
 
-The current project is a greenfield Astro baseline. Python, Flask and native
-runtime binaries from the earlier prototype are intentionally not part of this
-codebase.
+## Deutsch
 
-## Local Development
+ProDJ Beats ergänzt vorhandene DJ-Hardware um eine größere Live-Anzeige im
+Browser – beispielsweise auf einem Tablet neben dem eingebauten Display.
+Das Projekt nutzt die Open-Source-Bibliothek
+[beat-link von Deep Symmetry](https://github.com/Deep-Symmetry/beat-link), um
+Daten aus dem ProDJ-Link-Netzwerk für eine gemeinsame Weboberfläche aufzubereiten.
 
-Run `npm run dev` in your VS Code terminal. This builds the Java bridge,
-starts **Astro and the bridge together in the foreground**, and shows both
-logs in the same terminal. `Ctrl+C` stops both services; if one fails, the
-other is stopped too. `npm start` uses the same flow.
+Die Idee: Bewährte, funktionierende Geräte mit ergänzender Software länger und
+vielseitiger nutzen. ProDJ Beats ist ein unabhängiges Entwicklungsprojekt;
+es besteht keine Verbindung zu AlphaTheta oder Pioneer DJ.
 
-Prerequisites: Node.js, JDK 21 or newer, and the beat-link runtime dependencies
-installed once with `npm run bridge:deps`.
+### Aktueller Stand
 
-Open `http://localhost:4325` locally or `http://macstudio.local:4325/` on the
-MacBook Air in the same network. Add `?source=replay` for fixture playback.
-The port stays fixed at 4325; an occupied port causes a startup failure.
-The browser connects to `/events` on the UI host; Astro proxies WebSocket
-traffic to the local bridge at `127.0.0.1:8787`. Production hosting needs an
-equivalent WebSocket proxy.
+Der Prototyp wurde mit einem **XDJ-XZ** live geprüft. Die Oberfläche zeigt,
+soweit vom Gerät und vom geladenen Track verfügbar:
 
-Stop any old independently started bridge in its original terminal before
-using the combined command. For an old Astro background instance, run
-`npx astro dev stop` once. No services are forcibly replaced by `npm run dev`.
+- Tracktitel, Interpret, Album und Cover.
+- Wiedergabestatus, Laufzeit und Restzeit; rote Restzeitanzeige ab 20 Sekunden.
+- BPM, Beat im Takt, absolute Track-Beatposition und musikalische Phrasen.
+- Tempo-Master mit effektivem Tempo, Grund-BPM, Pitch und Sync-Status.
+- Beat-Anzeige 1–4, gemeldete Masterübergaben und On-Air-Kanäle.
+- Verbundene Geräte und deren vom Netzwerk gemeldete Adressen.
 
-Coding agents reuse your running services rather than start separate servers.
-Project rules are in [.github/copilot-instructions.md](.github/copilot-instructions.md),
-also referenced by [AGENTS.md](AGENTS.md).
+Live-Daten und Fixture-Replay verwenden denselben Eventvertrag und dieselbe
+Zustandsverarbeitung. Replay ermöglicht Entwicklung und Tests ohne DJ-Hardware.
+Unbekannte Werte bleiben als solche erkennbar.
 
-## Current Scope
+**Grenzen:** Andere Gerätemodelle sind durch die XDJ-XZ-Tests nicht automatisch
+validiert. Master-Level-Regler, Audiopegel und Beat-FX-Einstellungen werden am
+XDJ-XZ derzeit nicht ausgelesen. On-Air bezeichnet den gemeldeten Kanalzustand,
+keine Audiopegelmessung. Die weitere Nutzung der **RB-DMX1** ist ein
+Untersuchungsthema; eine Integration ist noch nicht umgesetzt.
 
-- Astro SPA with Preact integration.
-- Typed ProDJ Link event contracts.
-- Session reducer for devices, tracks, beats, structure, artwork and messages.
-- Fixture replay for deterministic local development.
-- Java bridge sidecar skeleton for Deep-Symmetry `beat-link`.
-- GitHub Actions CI for app and bridge verification.
+### Einrichtung und Start
 
-## Architecture
-
-```text
-apps/
-  bridge/          Java sidecar. Publishes normalized events over WebSocket.
-
-src/
-  application/     Session use cases and state reducers.
-  components/      Astro UI components.
-  content/         Prepared documentation content for future Starlight setup.
-  domain/          Pure models, schemas and parser classes.
-  infrastructure/  Fixture and future transport adapters.
-  layouts/         Shared document shell.
-  pages/           SPA entry points.
-  scripts/         npm-driven project scripts.
-
-scripts/           Root-level npm helper scripts.
-```
-
-Java stays behind the bridge boundary. Astro and TypeScript remain the
-application and UI layer. The bridge currently exposes:
-
-```text
-ws://127.0.0.1:8787/events
-```
-
-## Commands
-
-Install dependencies:
+Voraussetzungen: **Node.js ab 22.12**, **npm ab 9.6.5** und **JDK 21 oder neuer**.
+Für Live-Daten muss der Rechner das ProDJ-Link-Netzwerk der DJ-Hardware erreichen.
+Ein Tablet benötigt Zugriff auf den Rechner, der die Anwendung ausführt.
 
 ```bash
-npm install
-```
-
-Run the web app and bridge together:
-
-```bash
+npm ci
+npm run bridge:deps
 npm run dev
 ```
 
-Run verification:
+`npm run bridge:deps` lädt die Java-Abhängigkeiten herunter. `npm run dev` baut
+die Bridge und startet **Web-App und Java-Bridge gemeinsam im Vordergrund**.
+Beide Logs erscheinen im selben Terminal; `Ctrl+C` beendet beide Prozesse.
+`npm start` ist gleichwertig. Keinen zusätzlichen Bridge-Prozess daneben starten.
+
+Die Web-App läuft auf Port **4325**. Öffne die vom Terminal angezeigte Adresse.
+Für ein Tablet verwende `http://<Adresse-des-Rechners>:4325/` und ersetze den
+Platzhalter durch die erreichbare LAN-Adresse. Ergänze `?source=replay` für die
+Demo mit Fixtures. Bei Verwendung eines eigenen Hostnamens prüfe die
+`allowedHosts`-Einstellung in `astro.config.mjs`.
+
+Die Bridge bleibt auf den lokalen Rechner beschränkt und nutzt Port **8787**.
+Der Browser verbindet sich über `/events`; der Dev-Server leitet diese
+WebSocket-Verbindung an die Bridge weiter. Ein statischer Web-Build allein
+liefert keine Live-Daten; ein Deployment benötigt zusätzlich die laufende Bridge
+und einen entsprechenden WebSocket-Proxy.
+
+Java-Änderungen benötigen einen Neustart von `npm run dev`. Änderungen an der
+Weboberfläche werden während der Entwicklung über HMR aktualisiert. Mehrere
+Netzwerkadapter im selben Subnetz können die Adapterwahl und den Empfang
+beeinflussen; die Bridge protokolliert ihre gewählte Adresse und Playernummer.
+
+### Entwicklung und Prüfung
 
 ```bash
-npm run test
+npm test
 npm run check
+npm run bridge:test
 npm run fixture:replay
 npm run build
-npm run bridge:deps
-npm run bridge:build
 ```
 
-Run only the Java bridge for standalone diagnostics (not alongside `npm run dev`):
+Die Tests prüfen Eventvalidierung, Zustandswechsel, Live-/Replay-Verarbeitung
+und die Java-Bridge. Erfolgreiche Fixtures ersetzen keine Hardwareprüfung.
+Projektregeln stehen in [AGENTS.md](AGENTS.md) und
+[.github/copilot-instructions.md](.github/copilot-instructions.md).
+
+## English
+
+ProDJ Beats adds a larger browser-based live display to existing DJ hardware –
+for example, a tablet alongside the built-in screen. It uses the open-source
+[beat-link library by Deep Symmetry](https://github.com/Deep-Symmetry/beat-link)
+to bring ProDJ Link network data into a shared web interface.
+
+The aim is to extend the useful life and capabilities of working DJ equipment
+through complementary software. ProDJ Beats is an independent development
+project, with no affiliation to AlphaTheta or Pioneer DJ.
+
+### Current status
+
+The prototype has been tested live with an **XDJ-XZ**. Where supported by the
+device and loaded track, the interface shows:
+
+- Track title, artist, album and artwork.
+- Playback status, elapsed and remaining time; red remaining time at 20 seconds or less.
+- BPM, beat within the bar, absolute track beat and musical phrases.
+- Tempo master with effective tempo, base BPM, pitch and sync status.
+- A 1–4 beat indicator, reported master handoffs and on-air channels.
+- Connected devices and their network-reported addresses.
+
+Live data and fixture replay share the same event contract and state handling.
+Replay supports development and testing without DJ hardware. Unknown values
+remain visibly unknown.
+
+**Limitations:** XDJ-XZ testing does not validate other hardware models.
+Master-level knob position, audio meters and Beat FX settings are currently
+unavailable on the XDJ-XZ. On-air represents reported channel state, not a
+measurement of audio level. Further use of the **RB-DMX1** is under
+investigation; integration has not been implemented.
+
+### Setup and start
+
+Requirements: **Node.js 22.12 or newer**, **npm 9.6.5 or newer**, and **JDK 21 or
+newer**. For live data, the computer must reach the hardware's ProDJ Link
+network. A tablet must be able to access the computer running the application.
 
 ```bash
-npm run bridge:run
+npm ci
+npm run bridge:deps
+npm run dev
 ```
 
-`npm run bridge:deps` downloads the `beat-link` runtime jars and their
-dependencies into `apps/bridge/lib/`. `npm run bridge:run` starts the local
-WebSocket server. JAR files are intentionally ignored and not committed.
+`npm run bridge:deps` downloads the Java dependencies. `npm run dev` builds the
+bridge and runs **the web app and Java bridge together in the foreground**.
+Both logs stay in the same terminal; `Ctrl+C` stops both processes. `npm start`
+is equivalent. Do not run a separate bridge alongside this command.
 
-## Development Principles
+The web app uses port **4325**. Open the address printed in the terminal.
+On a tablet, use `http://<computer-address>:4325/`, replacing the placeholder
+with the computer's reachable LAN address. Add `?source=replay` for fixture
+playback. If using a custom hostname, check `allowedHosts` in `astro.config.mjs`.
 
-- Keep the event contract canonical and shared by fixtures, tests and UI.
-- Prefer fixture replay before live transport for testable UI work.
-- Keep domain code independent from Astro, browser APIs and the Java bridge.
-- Use npm scripts as the primary developer entry points.
-- Keep the repository cross-platform: no committed `.exe`, `.dll` or `.jar`
-  runtime artifacts.
+The bridge is restricted to the local computer on port **8787**. The browser
+connects through `/events`, which the development server proxies to the bridge
+over WebSocket. A static web build alone cannot provide live data: deployment
+also requires the running bridge and a corresponding WebSocket proxy.
 
-## Documentation
+Java changes require restarting `npm run dev`; web UI changes use HMR during
+development. Multiple network adapters on the same subnet can affect adapter
+selection and reception. The bridge logs its selected address and player number.
 
-Developer documentation is being prepared under:
+### Development and verification
+
+```bash
+npm test
+npm run check
+npm run bridge:test
+npm run fixture:replay
+npm run build
+```
+
+Tests cover event validation, state transitions, shared live/replay handling and
+the Java bridge. Passing fixtures do not replace hardware verification.
+See [AGENTS.md](AGENTS.md) and
+[.github/copilot-instructions.md](.github/copilot-instructions.md) for project rules.
+
+## Architektur / Architecture
 
 ```text
-src/content/docs/
+ProDJ Link → Java / beat-link → WebSocket events v2
+                                     ↓
+Fixture replay → shared parser and session → Astro / Preact UI
 ```
 
-This keeps the project ready for a later Starlight and Astro content collections
-setup without making documentation tooling part of the runtime yet.
+| Bereich / Area | Aufgabe / Responsibility |
+| --- | --- |
+| `apps/bridge/` | Java-Adapter und WebSocket-Ereignisse / Java adapter and WebSocket events |
+| `src/domain/` | Eventvertrag und Fachmodelle / Event contract and domain models |
+| `src/application/` | Gemeinsame Session und Zustandswechsel / Shared session and state transitions |
+| `src/infrastructure/` | Live-Transport und Replay / Live transport and replay |
+| `src/components/`, `src/styles/` | Oberfläche / User interface |
+| `scripts/` | Entwicklungs-, Build- und Testbefehle / Development, build and test commands |
+
+## Lizenz / License
+
+[MIT](LICENSE). Abhängigkeiten unterliegen ihren jeweiligen Lizenzen.
+Dependencies retain their respective licenses.
