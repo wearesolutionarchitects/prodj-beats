@@ -10,9 +10,22 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.Collection;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
-final class BeatLinkAdapter {
+final class BeatLinkAdapter implements AutoCloseable {
     private final EventBroadcaster broadcaster;
+    private final Set<String> registeredListeners = new HashSet<>();
+    private final ScheduledExecutorService startup = Executors.newSingleThreadScheduledExecutor(task -> {
+        Thread thread = new Thread(task, "beat-link-startup");
+        thread.setDaemon(true);
+        return thread;
+    });
+    private boolean servicesReady;
     private final Map<Integer, Map<String, Object>> sourcesByPlayer = new HashMap<>();
 
     BeatLinkAdapter(EventBroadcaster broadcaster) {
@@ -20,28 +33,52 @@ final class BeatLinkAdapter {
     }
 
     void start() {
+        broadcaster.publish(CanonicalEvent.sys(202, "Waiting for players, status and metadata services"));
+        startup.scheduleWithFixedDelay(this::startServices, 0, 5, TimeUnit.SECONDS);
+    }
+
+    private void startServices() {
         try {
-            startVirtualCdj();
-            startMetadataServices();
             startDeviceFinder();
             startBeatFinder();
-            broadcaster.publish(CanonicalEvent.sys(200, "beat-link bridge started"));
-        } catch (ClassNotFoundException missingBeatLink) {
-            broadcaster.publish(CanonicalEvent.sys(
-                    503,
-                    "beat-link jars not found; add them to apps/bridge/lib before using hardware"
-            ));
-        } catch (InvocationTargetException ex) {
-            Throwable cause = ex.getCause() == null ? ex : ex.getCause();
-            broadcaster.publish(CanonicalEvent.error("Unable to start beat-link: " + describe(cause)));
-        } catch (ReflectiveOperationException ex) {
-            broadcaster.publish(CanonicalEvent.error("Unable to start beat-link: " + describe(ex)));
+            Object virtualCdj = singleton("org.deepsymmetry.beatlink.VirtualCdj");
+            if (!Boolean.TRUE.equals(firstValue(virtualCdj, "isRunning"))) {
+                servicesReady = false;
+                Object devices = firstValue(singleton("org.deepsymmetry.beatlink.DeviceFinder"), "getCurrentDevices");
+                if (!(devices instanceof Collection<?> found) || found.isEmpty()) return;
+                if (!startService(virtualCdj)) {
+                    broadcaster.publish(CanonicalEvent.sys(503, "VirtualCdj could not start; retrying"));
+                    return;
+                }
+            }
+            if (!servicesReady) {
+                startMetadataServices();
+                servicesReady = true;
+                broadcaster.publish(CanonicalEvent.sys(200, "beat-link status and metadata services started"));
+            }
+        } catch (ReflectiveOperationException | RuntimeException ex) {
+            reportStartupError(ex);
         }
     }
 
-    private void startVirtualCdj() throws ReflectiveOperationException {
-        Object virtualCdj = singleton("org.deepsymmetry.beatlink.VirtualCdj");
-        invokeIfPresent(virtualCdj, "start");
+    // Some beat-link services return false instead of throwing when startup fails.
+    static boolean startService(Object service) throws ReflectiveOperationException {
+        return !Boolean.FALSE.equals(service.getClass().getMethod("start").invoke(service));
+    }
+
+    private void reportStartupError(Exception ex) {
+        if (ex instanceof ClassNotFoundException) {
+            broadcaster.publish(CanonicalEvent.sys(503, "beat-link jars not found; run npm run bridge:deps"));
+            startup.shutdown();
+            return;
+        }
+        Throwable cause = ex instanceof InvocationTargetException && ex.getCause() != null ? ex.getCause() : ex;
+        broadcaster.publish(CanonicalEvent.error("Unable to start beat-link services: " + describe(cause)));
+    }
+
+    @Override
+    public void close() {
+        startup.shutdownNow();
     }
 
     private void startDeviceFinder() throws ReflectiveOperationException {
@@ -67,9 +104,6 @@ final class BeatLinkAdapter {
     }
 
     private void startMetadataServices() throws ReflectiveOperationException {
-        Object crateDigger = singleton("org.deepsymmetry.beatlink.data.CrateDigger");
-        invokeIfPresent(crateDigger, "start");
-
         Object metadataFinder = singleton("org.deepsymmetry.beatlink.data.MetadataFinder");
         registerListener(
                 metadataFinder,
@@ -77,6 +111,9 @@ final class BeatLinkAdapter {
                 "org.deepsymmetry.beatlink.data.TrackMetadataListener",
                 this::handleTrackMetadata
         );
+        // CrateDigger can start MetadataFinder itself, so subscribe before either starts.
+        Object crateDigger = singleton("org.deepsymmetry.beatlink.data.CrateDigger");
+        invokeIfPresent(crateDigger, "start");
         invokeIfPresent(metadataFinder, "start");
 
         Object artFinder = singleton("org.deepsymmetry.beatlink.data.ArtFinder");
@@ -104,6 +141,8 @@ final class BeatLinkAdapter {
             String typeTag,
             ReflectedEventHandler handler
     ) throws ReflectiveOperationException {
+        String key = target.getClass().getName() + fileExtension + typeTag;
+        if (registeredListeners.contains(key)) return;
         Class<?> listenerClass = Class.forName("org.deepsymmetry.beatlink.data.AnalysisTagListener");
         InvocationHandler invocationHandler = (proxy, method, args) -> {
             if (method.getDeclaringClass().equals(Object.class)) {
@@ -123,6 +162,7 @@ final class BeatLinkAdapter {
         target.getClass()
                 .getMethod("addAnalysisTagListener", listenerClass, String.class, String.class)
                 .invoke(target, listener, fileExtension, typeTag);
+        registeredListeners.add(key);
     }
 
     private void registerListener(
@@ -131,6 +171,8 @@ final class BeatLinkAdapter {
             String listenerClassName,
             ReflectedEventHandler handler
     ) throws ReflectiveOperationException {
+        String key = target.getClass().getName() + methodName;
+        if (registeredListeners.contains(key)) return;
         Class<?> listenerClass = Class.forName(listenerClassName);
         InvocationHandler invocationHandler = (proxy, method, args) -> {
             if (method.getDeclaringClass().equals(Object.class)) {
@@ -148,6 +190,7 @@ final class BeatLinkAdapter {
                 invocationHandler
         );
         target.getClass().getMethod(methodName, listenerClass).invoke(target, listener);
+        registeredListeners.add(key);
     }
 
     private synchronized void handleDeviceAnnouncement(Method method, Object announcement) {

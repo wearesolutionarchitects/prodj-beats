@@ -88,3 +88,17 @@ ambiguous. See the developer notes for the full contract.
 
 `npm run bridge:test` builds and runs hardware-independent bridge regression
 checks without downloading runtime JARs.
+
+## Starting with hardware connected later
+
+Discovery and beat reception start first. Status/metadata services start on a
+background worker once players appear and retry after a failed start. A false
+`VirtualCdj.start()` result is not reported as successful. Retry attempts reuse
+listeners rather than registering duplicate callbacks. The metadata listener
+is attached before CrateDigger can start MetadataFinder.
+
+`npm run bridge:run` rebuilds Java sources on every launch. Vite hot reload
+updates the web UI only; Java changes require restarting the bridge. Initial
+metadata/artwork may arrive after beat packets while the player's database is
+being fetched. Two network adapters on the same subnet can cause duplicate
+packets; beat-link reports this in its console diagnostics.

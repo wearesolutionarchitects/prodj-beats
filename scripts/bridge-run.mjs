@@ -6,16 +6,12 @@ const root = resolve(new URL('..', import.meta.url).pathname);
 const classesRoot = join(root, 'apps', 'bridge', 'build', 'classes');
 const libRoot = join(root, 'apps', 'bridge', 'lib');
 
-if (!existsSync(classesRoot)) {
-  const build = spawnSync('node', ['scripts/bridge-build.mjs'], {
-    cwd: root,
-    stdio: 'inherit'
-  });
-
-  if (build.status !== 0) {
-    process.exit(build.status ?? 1);
-  }
-}
+// Rebuild before every launch so Java changes cannot silently use stale classes.
+const build = spawnSync('node', ['scripts/bridge-build.mjs'], {
+  cwd: root,
+  stdio: 'inherit'
+});
+if (build.status !== 0) process.exit(build.status ?? 1);
 
 const jars = existsSync(libRoot)
   ? readdirSync(libRoot)

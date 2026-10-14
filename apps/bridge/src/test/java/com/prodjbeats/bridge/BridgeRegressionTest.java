@@ -9,6 +9,10 @@ import java.util.Map;
 /** Standalone tests: no hardware, runtime JARs or test framework required. */
 public final class BridgeRegressionTest {
     public static void main(String[] args) throws Exception {
+        var service = new DelayedService();
+        check(!BeatLinkAdapter.startService(service), "false startup must not be reported as success");
+        check(BeatLinkAdapter.startService(service), "startup can be retried after a late device appears");
+        check(BeatLinkAdapter.startService(new VoidService()), "void lifecycle startup remains supported");
         var log = Files.createTempFile("prodj-bridge-test", ".jsonl");
         try (var broadcaster = new EventBroadcaster(log)) {
             var sink = new RecordingSink();
@@ -51,6 +55,13 @@ public final class BridgeRegressionTest {
         final List<String> messages = new ArrayList<>();
         public void send(String message) { messages.add(message); }
         public void close() {}
+    }
+    public static final class DelayedService {
+        private int attempts;
+        public boolean start() { return ++attempts > 1; }
+    }
+    public static final class VoidService {
+        public void start() {}
     }
     public static final class FakeBeat {
         public int getDeviceNumber() { return 1; }
