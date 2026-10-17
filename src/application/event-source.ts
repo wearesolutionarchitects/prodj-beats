@@ -7,6 +7,7 @@ export interface EventObserver {
   error(error: unknown): void;
 }
 export interface EventSource {
+  readonly timeScale?: number;
   subscribe(observer: EventObserver): () => void;
 }
 

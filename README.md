@@ -10,6 +10,18 @@ Geräteadressen sind für diesen Screenshot ausgeblendet.*
 *Live XDJ-XZ data in the browser: two decks and the tempo master at a glance.
 Device addresses are hidden in this screenshot.*
 
+![Alle acht RGB-PAR-Spots leuchten im Live-Muster / All eight RGB-PAR spots illuminated in the live pattern](docs/images/prodj-beats-lighting-preview.jpg)
+
+*Live-Aufnahme des Musters „All spots“: alle acht virtuellen RGB-PAR-Spots
+leuchten gemeinsam zum Tempo-Master. Phrasenmuster ergänzen Fanning,
+Gruppenwechsel, weiche Überblendungen und Beat-Pulse. Keine lokalen
+Geräteadressen im Screenshot; weiterhin reine Vorschau ohne Hardware-Ausgabe.*
+
+*Live capture of the “All spots” pattern: all eight virtual RGB-PAR spots light
+up together to the tempo master. Phrase-driven patterns combine fanning, group
+exchanges, smooth fades and beat pulses. No local device addresses appear in
+the screenshot; this remains a software preview with no hardware output.*
+
 ![Pioneer DJ XDJ-XZ im Einsatz / Pioneer DJ XDJ-XZ in use](docs/images/xdj-xz-hardware.jpg)
 
 *Die Hardware hinter den Live-Daten: der XDJ-XZ im Einsatz. ProDJ Beats ergänzt
@@ -40,6 +52,8 @@ soweit vom Gerät und vom geladenen Track verfügbar:
 - BPM, Beat im Takt, absolute Track-Beatposition und musikalische Phrasen.
 - Tempo-Master mit effektivem Tempo, Grund-BPM, Pitch und Sync-Status.
 - Beat-Anzeige 1–4, gemeldete Masterübergaben und On-Air-Kanäle.
+- Virtuelle Lighting-Vorschau mit acht RGB-PAR-Spots: links und rechts je vier,
+  synchron zum Tempo-Master; keine Hardware-Ausgabe.
 - Verbundene Geräte und deren vom Netzwerk gemeldete Adressen.
 - Aufklappbare Verbindungsdiagnose: Bridge-Adapter, Playernummer, Statussenden
   und Empfang von Ankündigungen, Status, Beats und Metadaten.
@@ -53,6 +67,37 @@ validiert. Master-Level-Regler, Audiopegel und Beat-FX-Einstellungen werden am
 XDJ-XZ derzeit nicht ausgelesen. On-Air bezeichnet den gemeldeten Kanalzustand,
 keine Audiopegelmessung. Die weitere Nutzung der **RB-DMX1** ist ein
 Untersuchungsthema; eine Integration ist noch nicht umgesetzt.
+
+### Lighting-Vorschau
+
+Die acht virtuellen RGB-PAR-Spots ergänzen die Track-Anzeige um:
+
+- **Fanning:** gespiegelte Lichtfolgen mit Hin- und Rücklauf.
+- **Weiche Überblendungen:** Farben und Helligkeiten wechseln fließend zwischen
+  den Beat-Ereignissen; die musikalische Phrase bestimmt die Farbpalette.
+- **Beat-Pulse:** Helligkeitsimpulse im Mastertempo, mit stärkerem Akzent auf Beat 1.
+
+Die Phrase steuert die Musterwahl:
+
+| Phrase | Lichtmuster |
+| --- | --- |
+| Intro / Outro | Gespiegeltes Fanning mit Hin- und Rücklauf. |
+| Verse / Bridge | Wechsel zwischen linker und rechter Vierergruppe sowie inneren und äußeren Spot-Paaren. |
+| Chorus | Alle acht Spots auf Beat 1 und 3; Gruppenwechsel auf Beat 2 und 4. |
+| Break | Gedämpfter Wash über alle acht Spots. |
+| Andere oder fehlende Phrase | Wechsel zwischen Fanning, Gruppen und allen Spots alle vier Takte anhand der empfangenen Beats. |
+
+Die Muster gehen mit weichen Überblendungen ineinander über. Die Oberfläche
+zeigt das aktive Muster neben Tempo und Phrase an.
+
+Live und Replay verwenden dieselbe Effektberechnung; die Animation berücksichtigt
+auch die Replay-Geschwindigkeit. Echte Beat-Ereignisse synchronisieren die Effekte.
+Ohne weitere Beats klingt das Licht aus, ohne selbstständig die Lichtfolge
+fortzusetzen. Pause hält den Effekt; Master- und Trackwechsel setzen ihn bis zum
+nächsten passenden Beat zurück. Bei Verbindungsverlust werden die Spots dunkel.
+
+Die Vorschau steuert **keine Hardware** an: DMX-, Art-Net- und USB-Ausgabe sowie
+eine RB-DMX1-Integration sind noch nicht implementiert.
 
 ### Einrichtung und Start
 
@@ -127,6 +172,8 @@ device and loaded track, the interface shows:
 - BPM, beat within the bar, absolute track beat and musical phrases.
 - Tempo master with effective tempo, base BPM, pitch and sync status.
 - A 1–4 beat indicator, reported master handoffs and on-air channels.
+- Virtual lighting preview with eight RGB-PAR spots: four on each side,
+  synchronised to the tempo master; no hardware output.
 - Connected devices and their network-reported addresses.
 - Expandable connection diagnostics: bridge adapter, player number, own status
   sending and reception of announcements, status, beats and metadata.
@@ -140,6 +187,38 @@ Master-level knob position, audio meters and Beat FX settings are currently
 unavailable on the XDJ-XZ. On-air represents reported channel state, not a
 measurement of audio level. Further use of the **RB-DMX1** is under
 investigation; integration has not been implemented.
+
+### Lighting preview
+
+The eight virtual RGB-PAR spots complement the track display with:
+
+- **Fanning:** mirrored light sequences travelling out and back.
+- **Smooth fades:** colors and brightness blend between beat events; the musical
+  phrase determines the color palette.
+- **Beat pulses:** brightness pulses at the master tempo, with a stronger accent
+  on beat 1.
+
+The phrase determines the pattern:
+
+| Phrase | Lighting pattern |
+| --- | --- |
+| Intro / Outro | Mirrored fanning travelling out and back. |
+| Verse / Bridge | Exchanges between the left and right banks of four, then inner and outer spot pairs. |
+| Chorus | All eight spots on beats 1 and 3; group exchanges on beats 2 and 4. |
+| Break | A subdued wash across all eight spots. |
+| Other or missing phrase | Rotate between fanning, groups and all spots every four bars using received beats. |
+
+Patterns transition with smooth fades. The interface shows the active pattern
+alongside tempo and phrase.
+
+Live and replay use the same effect calculation, including replay speed.
+Actual beat events synchronise the effects. When beats stop arriving, the light
+fades out without advancing the sequence on its own. Pause holds the effect;
+master and track changes reset it until the next matching beat. A lost connection
+turns the spots dark.
+
+The preview has **no hardware output**: DMX, Art-Net, USB output and RB-DMX1
+integration have not been implemented.
 
 ### Setup and start
 

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
-import { ProDjLinkSession } from '../application/session';
+import { lightingFrame } from '../domain/lighting';
+import { ProDjLinkSession, type SessionSnapshot } from '../application/session';
 import { observeSession } from '../application/event-source';
 import { ReplayEventSource, WebSocketEventSource } from './event-sources';
 import { EventParser, type ProDjLinkEvent } from '../domain/events';
@@ -13,9 +14,9 @@ class Socket extends EventTarget {
 }
 
 // Identical events through the public live/replay boundaries, comparing every step.
-function compare(events: ProDjLinkEvent[]) {
+function compare(events: ProDjLinkEvent[], patterns: string[] = []) {
   const live = new ProDjLinkSession(), replay = new ProDjLinkSession();
-  const liveStates: unknown[] = [], replayStates: unknown[] = [];
+  const liveStates: SessionSnapshot[] = [], replayStates: SessionSnapshot[] = [];
   const socket = new Socket();
   const stop = observeSession(new WebSocketEventSource('ws://test', () => socket as unknown as WebSocket), live,
     snapshot => liveStates.push(snapshot), () => {});
@@ -23,8 +24,18 @@ function compare(events: ProDjLinkEvent[]) {
   observeSession(new ReplayEventSource(events, 0), replay, snapshot => replayStates.push(snapshot), () => {});
   events.forEach(event => socket.message(event));
   assert.deepEqual(liveStates, replayStates);
+  for (const pattern of patterns) assert.ok(liveStates.some(state => state.lighting.status === 'synced' && state.lighting.pattern === pattern), pattern);
+  // Sample between packets too: output must match at the same recording time.
+  liveStates.forEach((state, index) => {
+    for (const fraction of [0, 0.2, 0.45, 0.9, 2]) {
+      const time = state.lighting.animation.at + state.lighting.animation.duration * fraction;
+      assert.deepEqual(lightingFrame(state.lighting, time), lightingFrame(replayStates[index]!.lighting, time));
+    }
+  });
+  assert.ok(liveStates.some(state => state.lighting.status === 'synced' && state.lighting.spots.filter(spot => spot.intensity > 0).length === 2));
   socket.close();
   stop();
+  assert.ok(live.snapshot().lighting.spots.every(spot => spot.intensity === 0));
   assert.equal(live.snapshot().connection.bridge, null);
   assert.deepEqual(live.snapshot().connection.devices, {});
   return replay.snapshot();
@@ -92,4 +103,27 @@ test('synthetic late artwork after a recorded track change cannot replace curren
   const deck = state.decks.find(deck => deck.player === 1)!;
   assert.equal(deck.track?.title, 'Replacement track');
   assert.equal(deck.artworkDataUri, null);
+});
+
+
+test('phrase-driven full rig, groups, wash and fan share live/replay frames across transitions', () => {
+  const track = recording.find(event => event.type === 'track' && event.payload.player === 1)!;
+  const master = recording.find(event => event.type === 'master' && event.payload.player === 1)!;
+  if (track.type !== 'track' || !track.payload.source) throw new Error('track required');
+  const source = track.payload.source;
+  const events: unknown[] = [
+    { ...track, ms: 0 }, { ...master, ms: 1 },
+    { type: 'position', version: 2, ms: 2, payload: { player: 1, source, positionMs: 0, playbackStatus: 'playing' } },
+    { type: 'structure', version: 2, ms: 3, payload: { player: 1, source, bank: 'default', mood: 'mid', phrases: [
+      { startBeat: 1, beats: 4, kind: 'intro' }, { startBeat: 5, beats: 8, kind: 'verse-1' },
+      { startBeat: 13, beats: 4, kind: 'chorus' }, { startBeat: 17, beats: 4, kind: 'break' },
+      { startBeat: 21, beats: 4, kind: 'outro' }
+    ] } }
+  ];
+  for (let trackBeat = 1; trackBeat <= 24; trackBeat++) {
+    const beat = { type: 'beat', version: 2, ms: trackBeat * 500, payload: { player: 1, trackBeat, beatWithinBar: (trackBeat - 1) % 4 + 1, tempo: 120 } };
+    events.push(beat, { ...beat, ms: beat.ms + 20 }); // duplicate adapter reception
+  }
+  const state = compare(new EventParser().parseMany(events), ['fan', 'groups', 'all', 'wash']);
+  assert.equal(state.lighting.pattern, 'fan');
 });

@@ -1,3 +1,4 @@
+import LightingPreview from './LightingPreview';
 import ConnectionDiagnostics from './ConnectionDiagnostics';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { connectedDevices, masterTempo, ProDjLinkSession, type SessionSnapshot } from '../application/session';
@@ -14,12 +15,12 @@ export default function LiveDeckMonitor({ source }: { source?: EventSource }) {
   const [snapshot, setSnapshot] = useState<SessionSnapshot>(() => session.snapshot());
   const [status, setStatus] = useState<SourceStatus>('connecting');
 
+  const selected = useMemo<EventSource>(() => source ?? (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('source') === 'replay'
+    ? new ReplayEventSource(fixtureEvents, 20) : new WebSocketEventSource()), [source]);
+
   useEffect(() => {
-    const selected = source ?? (new URLSearchParams(window.location.search).get('source') === 'replay'
-      ? new ReplayEventSource(fixtureEvents, 20)
-      : new WebSocketEventSource());
     return observeSession(selected, session, setSnapshot, setStatus);
-  }, [session, source]);
+  }, [session, selected]);
 
   // HMR can retain a snapshot created before the mixer field was added.
   const mixers = snapshot.mixers ?? [];
@@ -30,7 +31,12 @@ export default function LiveDeckMonitor({ source }: { source?: EventSource }) {
       <h1 class="sr-only">ProDJ Link Monitor</h1>
 
       <section class="deck-grid" aria-label="Player">
-        {decks.slice(0, 2).map((deck) => <DeckCardView key={deck.player} deck={deck} />)}
+        <div class="players-column">
+          <div class="players-grid">
+            {decks.map((deck) => <DeckCardView key={deck.player} deck={deck} />)}
+          </div>
+          <LightingPreview lighting={snapshot.lighting} eventMs={snapshot.lastEvent?.ms ?? 0} timeScale={selected.timeScale ?? 1} running={status === 'live' || status === 'replay'} />
+        </div>
         <aside class="mixer-column" aria-label="Mixer">
           <OnAirCard channels={snapshot.onAir?.payload.channels ?? null} snapshot={snapshot} status={status} />
           <ConnectionDiagnostics connection={snapshot.connection} />
@@ -38,7 +44,6 @@ export default function LiveDeckMonitor({ source }: { source?: EventSource }) {
             <MixerCard key={event.payload.player} event={event} device={snapshot.decks.find((deck) => deck.player === event.payload.player)?.device ?? null} />
           ))}
         </aside>
-        {decks.slice(2).map((deck) => <DeckCardView key={deck.player} deck={deck} />)}
       </section>
     </>
   );

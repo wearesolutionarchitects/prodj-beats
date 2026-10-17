@@ -1,8 +1,10 @@
+import { LightingPreview, type LightingSnapshot } from '../domain/lighting';
 import { ConnectionDiagnostics, type ConnectionSnapshot } from '../domain/connection-diagnostics';
 import { Deck, type DeckState, type PlayerId, type Device } from '../domain/deck';
 import { EventParser, type MasterEvent, type MixerEvent, type OnAirEvent, type ProDjLinkEvent } from '../domain/events';
 
 export interface SessionSnapshot {
+  lighting: LightingSnapshot;
   connection: ConnectionSnapshot;
   decks: DeckState[];
   mixers: MixerEvent[];
@@ -13,6 +15,7 @@ export interface SessionSnapshot {
 }
 
 export class ProDjLinkSession {
+  private lighting = new LightingPreview();
   private connection = new ConnectionDiagnostics();
   private readonly decks = new Map<PlayerId, Deck>();
   private readonly mixers = new Map<PlayerId, MixerEvent>();
@@ -99,12 +102,15 @@ export class ProDjLinkSession {
       this.messages.unshift(event.payload.error ?? event.payload.message ?? 'Unknown ProDJ Link error');
     }
 
+    const masterPlayer = this.master?.payload.player;
+    this.lighting.apply(event, this.master, masterPlayer == null ? null : this.deck(masterPlayer).snapshot());
     this.messages.splice(5);
     return this.snapshot();
   }
 
   reset(): SessionSnapshot {
     this.connection = new ConnectionDiagnostics();
+    this.lighting = new LightingPreview();
     this.decks.clear();
     this.mixers.clear();
     this.onAir = null;
@@ -120,6 +126,7 @@ export class ProDjLinkSession {
 
   disconnect(): SessionSnapshot {
     this.connection = new ConnectionDiagnostics();
+    this.lighting = new LightingPreview();
     this.decks.forEach((deck) => deck.disconnect());
     this.mixers.clear();
     this.onAir = null;
@@ -133,6 +140,7 @@ export class ProDjLinkSession {
 
   snapshot(): SessionSnapshot {
     return {
+      lighting: this.lighting.snapshot(),
       connection: this.connection.snapshot(),
       decks: [...this.decks.values()].map((deck) => deck.snapshot()),
       mixers: structuredClone([...this.mixers.values()]),

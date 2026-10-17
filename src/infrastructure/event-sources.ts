@@ -51,6 +51,7 @@ export class WebSocketEventSource implements EventSource {
 }
 
 export class ReplayEventSource implements EventSource {
+  get timeScale(): number { return this.speed; }
   // speed=0 replays synchronously, useful for CLI and deterministic tests.
   constructor(private readonly events: readonly unknown[], private readonly speed = 1) {
     if (!Number.isFinite(speed) || speed < 0) throw new Error('Replay speed must be finite and nonnegative');

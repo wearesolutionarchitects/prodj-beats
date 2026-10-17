@@ -37,7 +37,9 @@ test('replay honors relative timestamps, speed and cancellation', (context) => {
   context.mock.timers.enable({ apis: ['setTimeout'] });
   const events: unknown[] = [];
   const statuses: SourceStatus[] = [];
-  const stop = new ReplayEventSource([{ ms: 100 }, { ms: 300 }, { ms: 500 }], 2).subscribe({
+  const source = new ReplayEventSource([{ ms: 100 }, { ms: 300 }, { ms: 500 }], 2);
+  assert.equal(source.timeScale, 2); // UI interpolation uses the same speed as packet scheduling.
+  const stop = source.subscribe({
     event: (event) => events.push(event), status: (status) => statuses.push(status), error: assert.fail
   });
   assert.equal(events.length, 1);
