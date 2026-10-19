@@ -27,9 +27,9 @@ export default function LightingPreview({ lighting, eventMs, timeScale, running 
             <h3>{side === 'left' ? 'Left' : 'Right'}</h3>
             <div class="lighting-spots">{rendered?.spots.filter(spot => spot.side === side).map(spot => (
               <div class="lighting-spot" key={spot.id} data-spot={spot.id} data-lit={spot.intensity > 0 ? 'true' : 'false'}>
-                <span class="lighting-lens" style={{ '--spot-color': `rgb(${spot.color.map(channel => Math.round(channel * spot.intensity)).join(',')})` }} aria-hidden="true" />
+                <span class="lighting-lens" style={{ '--spot-color': `rgb(${spot.color.slice(0, 3).map((channel, index) => Math.round(Math.min(1, channel + (spot.color[3] ?? 0) * [1, 0.85, 0.65][index]!) * spot.intensity * 255)).join(',')})` }} aria-hidden="true" />
                 <span>{spot.id}</span>
-                <span class="sr-only">{spot.intensity > 0 ? `RGB ${spot.color.join(', ')}, ${Math.round(spot.intensity * 100)}%` : 'Off'}</span>
+                <span class="sr-only">{spot.intensity > 0 ? `RGBW ${spot.color.map(channel => Math.round(channel * 100)).join(', ')}%, ${Math.round(spot.intensity * 100)}%` : 'Off'}</span>
               </div>
             ))}</div>
           </div>

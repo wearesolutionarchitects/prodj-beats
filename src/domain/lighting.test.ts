@@ -70,9 +70,9 @@ test('phrase palettes use known track structure and clear with loss/reset', () =
     { startBeat: 1, beats: 4, kind: 'intro' }, { startBeat: 5, beats: 4, kind: 'chorus' }
   ] });
   beat(1, 1);
-  assert.deepEqual(session.snapshot().lighting.spots[0]!.color, [75, 166, 245]);
+  assert.deepEqual(session.snapshot().lighting.spots[0]!.color, [75 / 255, 166 / 255, 245 / 255, 0]);
   beat(1, 5);
-  assert.deepEqual(session.snapshot().lighting.spots[2]!.color, [250, 190, 100]);
+  assert.deepEqual(session.snapshot().lighting.spots[2]!.color, [250 / 255, 190 / 255, 100 / 255, 0]);
   session.applyRaw({ type: 'beat', version: 2, ms: 1, payload: { player: 1, tempo: 126, beatWithinBar: 3, trackBeat: 3 } });
   assert.equal(lit(session).length, 8);
   emit('device', { player: 1, active: false, name: 'Controller A' });

@@ -1,12 +1,10 @@
 import type { DeckState } from './deck';
 import type { MasterEvent, ProDjLinkEvent } from './events';
 
-type RGB = readonly [number, number, number];
-export interface ParSpot {
+import type { LightOutput, RGBW } from './light-output';
+export interface ParSpot extends LightOutput {
   id: string;
   side: 'left' | 'right';
-  color: RGB;
-  intensity: number;
 }
 export type LightingPattern = 'fan' | 'groups' | 'all' | 'wash';
 export interface LightingSnapshot {
@@ -20,13 +18,13 @@ export interface LightingSnapshot {
   animation: { from: ParSpot[]; at: number; duration: number; frozenAt: number | null };
 }
 
-const DARK: RGB = [0, 0, 0];
-const BASE: RGB = [61, 220, 151];
+const DARK: RGBW = [0, 0, 0, 0];
+const BASE: RGBW = [61 / 255, 220 / 255, 151 / 255, 0];
 const isPaused = (deck: DeckState | null) => !!deck && ['paused', 'cued', 'ended', 'stopped'].includes(deck.playbackStatus);
-function phraseColor(phrase: string | null): RGB {
-  if (phrase?.startsWith('intro') || phrase?.startsWith('outro')) return [75, 166, 245];
-  if (phrase?.startsWith('chorus')) return [250, 190, 100];
-  if (phrase?.startsWith('break')) return [176, 120, 240];
+function phraseColor(phrase: string | null): RGBW {
+  if (phrase?.startsWith('intro') || phrase?.startsWith('outro')) return [75 / 255, 166 / 255, 245 / 255, 0];
+  if (phrase?.startsWith('chorus')) return [250 / 255, 190 / 255, 100 / 255, 0];
+  if (phrase?.startsWith('break')) return [176 / 255, 120 / 255, 240 / 255, 0];
   return BASE;
 }
 
@@ -147,7 +145,7 @@ export function lightingFrame(state: LightingSnapshot, timeMs: number): Lighting
   return { ...state, spots: state.spots.map((target, index) => {
     const previous = from[index];
     const intensity = ((previous?.intensity ?? 0) * (1 - smooth) + target.intensity * smooth) * pulse * accent;
-    const color = target.color.map((channel, c) => Math.round((previous?.color[c] ?? 0) * (1 - smooth) + channel * smooth)) as unknown as RGB;
+    const color = target.color.map((channel, c) => (previous?.color[c] ?? 0) * (1 - smooth) + channel * smooth) as unknown as RGBW;
     return { ...target, color, intensity };
   }) };
 }

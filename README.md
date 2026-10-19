@@ -96,6 +96,18 @@ Ohne weitere Beats klingt das Licht aus, ohne selbstständig die Lichtfolge
 fortzusetzen. Pause hält den Effekt; Master- und Trackwechsel setzen ihn bis zum
 nächsten passenden Beat zurück. Bei Verbindungsverlust werden die Spots dunkel.
 
+Das gemeinsame Lichtmodell verwendet normalisierte RGBW-Werte (Warmweiß) und
+einen logischen Dimmer mit Fließkommapräzision. Die bestehenden Paletten nutzen
+weiter RGB; Warmweiß bleibt dort zunächst 0. Das reine Ape-Labs-Fixture-Profil
+für den **8-Kanal-/16-Bit-Modus** erzeugt acht Bytes in der Reihenfolge Rot grob/fein,
+Blau grob/fein, Grün grob/fein, Warmweiß grob/fein gemäß der
+[Herstellerbelegung](https://apelabs.com/de/manual/maxi/dmx.html).
+Logischer Dimmer und Masterdimmer werden vor der abschließenden Quantisierung
+auf alle vier Farbwerte angewendet; es gibt keinen eigenen Dimmerkanal.
+Das Profil ist nur eine getestete Datenumrechnung, ohne Patch, Netzwerktransport
+oder Gerätekonfiguration. DMX-Modus und Adressen werden später manuell eingestellt;
+Standalone-Einstellungen, Presets, Gruppen und Pairing bleiben unberührt.
+
 Die Vorschau steuert **keine Hardware** an: DMX-, Art-Net- und USB-Ausgabe sowie
 eine RB-DMX1-Integration sind noch nicht implementiert.
 
