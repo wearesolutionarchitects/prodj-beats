@@ -1,4 +1,5 @@
-import { encodeApeLabsRgbw16 } from './fixture-profile';
+import { encodeApeLabsRgbw16, decodeApeLabsRgbw16 } from './fixture-profile';
+import type { SentFixture } from './lighting-output-status';
 import type { LightingSnapshot } from './lighting';
 
 export const MONITOR_PATCH = Object.freeze(
@@ -14,4 +15,10 @@ export function encodeMonitorUniverse(frame: LightingSnapshot): Uint8Array {
     if (light) data.set(encodeApeLabsRgbw16(light), patch.startAddress - 1);
   }
   return data;
+}
+
+export function decodeMonitorUniverse(data: Uint8Array): SentFixture[] {
+  if (data.length !== 512) throw new RangeError('Lighting patch requires a full 512-channel universe');
+  return MONITOR_PATCH.map(({ id, startAddress }) => ({ id, startAddress,
+    values: decodeApeLabsRgbw16(data.subarray(startAddress - 1, startAddress + 7)) }));
 }

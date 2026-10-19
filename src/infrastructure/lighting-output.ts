@@ -1,6 +1,7 @@
 import { isIPv4 } from 'node:net';
 import type { MonitorSink } from '../application/lighting-monitor';
 import type { LightingOutputStatus } from '../domain/lighting-output-status';
+import { decodeMonitorUniverse } from '../domain/lighting-patch';
 import { ArtNetAdapter, type ArtNetDestination } from './art-net';
 
 type OpenSink = (destination: ArtNetDestination) => Promise<MonitorSink>;
@@ -12,7 +13,7 @@ export class LightingOutput implements MonitorSink {
   private readonly state: LightingOutputStatus;
 
   private constructor(private readonly loopback: MonitorSink, address: string | null) {
-    this.state = { device: 'Showtec NET-2', address, universe: 1, state: 'disabled', sentFrames: 0, lastSentMs: null, error: null };
+    this.state = { device: 'Showtec NET-2', address, universe: 1, state: 'disabled', sentFrames: 0, lastSentMs: null, error: null, lastFrame: null };
   }
 
   static async open(env: Record<string, string | undefined>, open: OpenSink = destination => ArtNetAdapter.open(destination)) {
@@ -37,7 +38,7 @@ export class LightingOutput implements MonitorSink {
     return output;
   }
 
-  status(): LightingOutputStatus { return { ...this.state }; }
+  status(): LightingOutputStatus { return structuredClone(this.state); }
 
   async send(portAddress: number, data: Uint8Array): Promise<void> {
     if (this.closed) throw new Error('Lighting output is closed');
@@ -52,10 +53,12 @@ export class LightingOutput implements MonitorSink {
 
   private async sendHardware(data: Uint8Array) {
     try {
+      const frame = decodeMonitorUniverse(data);
       await this.hardware!.send(1, data);
       this.state.state = 'sending';
       this.state.sentFrames++;
       this.state.lastSentMs = Date.now();
+      this.state.lastFrame = frame;
     } catch (error) {
       // Stop further hardware sends after failure; restart is required to re-arm.
       this.state.state = 'error';

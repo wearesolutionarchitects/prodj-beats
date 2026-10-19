@@ -135,6 +135,23 @@ gehören zum Live-Sender; Replay im Browser aktiviert oder steuert ihn nicht.
 UDP-Erfolg bestätigt keinen Empfang am Controller. Der statische Build enthält
 keinen Sender und meldet dessen Status als nicht verfügbar.
 
+Vorschau und Ausgabe verwenden dasselbe Ape-Labs-RGBW-16-Bit-Profil mit der
+DMX-Reihenfolge Rot grob/fein, Blau grob/fein, Grün grob/fein, Warmweiß grob/fein.
+Die Vorschau übernimmt Dimmung und 16-Bit-Quantisierung aus dem Encoder und
+wandelt die resultierenden linearen Pegel für den Bildschirm nach sRGB um.
+Warmweiß wird nur angenähert; eine gemessene LED-/Display-Farbkalibrierung ist
+damit nicht gegeben. Die Hardware-Werte werden durch die Bildschirmumrechnung
+nicht verändert.
+
+Unter jedem Spot stehen die zuletzt erfolgreich per UDP gesendeten **TX16-Werte
+R/G/B/W (0–65535)**. Sie werden aus den gesendeten DMX-Bytes zurückgelesen, nicht
+aus der aktuellen Browseranimation geschätzt. Der Stand wird mit Zeitangabe alle
+zwei Sekunden abgefragt und kann deshalb hinter der laufenden Vorschau liegen.
+Vor dem ersten erfolgreichen Hardware-Senden stehen Striche; bei Fehlern bleiben
+die letzten Werte mit Fehlerstatus sichtbar. Auch im Browser-Replay beschreiben
+diese Werte ausschließlich den separaten Live-Sender. UDP-Erfolg ist weiterhin
+keine Bestätigung des physischen Leuchtenzustands.
+
 Die acht virtuellen RGB-PAR-Spots ergänzen die Track-Anzeige um:
 
 - **Fanning:** gespiegelte Lichtfolgen mit Hin- und Rücklauf.
@@ -426,6 +443,21 @@ disabled, ready, UDP sent, error or closed. Frame counts and errors describe the
 live sender; browser replay neither activates nor controls it. UDP success does
 not confirm controller receipt. Static builds contain no sender and show its
 status as unavailable.
+
+Preview and output use the same Ape Labs RGBW 16-bit fixture profile, with DMX
+channel order red coarse/fine, blue coarse/fine, green coarse/fine and warm white
+coarse/fine. The preview uses the encoder's dimming and 16-bit quantization,
+then converts the resulting linear levels to sRGB for display. Warm white is an
+approximation, not a measured LED/display calibration. This display conversion
+does not change hardware values.
+
+Each spot shows the last successfully UDP-sent **TX16 R/G/B/W values
+(0–65535)**, decoded from transmitted DMX bytes rather than estimated from the
+browser animation. The timestamped snapshot is polled every two seconds and may
+lag the preview. Dashes indicate no successful hardware send yet; errors retain
+the last successful values alongside error status. Browser replay still shows
+the separate live sender's values. UDP success does not confirm physical fixture
+state.
 
 The eight virtual RGB-PAR spots complement the track display with:
 

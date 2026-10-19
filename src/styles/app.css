@@ -389,4 +389,8 @@ h2 {
 .lighting-spot { display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 0.8rem; }
 .lighting-lens { width: clamp(28px, 4vw, 64px); aspect-ratio: 1; border-radius: 50%; border: 5px solid #39434c; background: var(--spot-color); }
 .lighting-spot[data-lit="true"] .lighting-lens { box-shadow: 0 0 20px var(--spot-color); border-color: #65737b; }
+.lighting-values { margin: 0; font-size: 0.7rem; font-variant-numeric: tabular-nums; }
+.lighting-values > div { display: flex; gap: 4px; justify-content: space-between; }
+.lighting-values dt { color: var(--color-text-muted); }
+.lighting-values dd { margin: 0; min-width: 5ch; text-align: right; }
 @media (max-width: 520px) { .lighting-rig { grid-template-columns: 1fr; gap: 24px; } }

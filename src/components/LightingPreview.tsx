@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { lightingFrame, type LightingSnapshot } from '../domain/lighting';
 import type { LightingOutputStatus } from '../domain/lighting-output-status';
+import { APE_LABS_RGBW_16, apeLabsPreviewRgb } from '../domain/fixture-profile';
 
 export default function LightingPreview({ lighting, eventMs, timeScale, running }: { lighting?: LightingSnapshot; eventMs: number; timeScale: number; running: boolean }) {
   const [time, setTime] = useState(eventMs);
@@ -50,17 +51,32 @@ export default function LightingPreview({ lighting, eventMs, timeScale, running 
         <span class={`status ${lighting?.status === 'synced' ? 'status--active' : ''}`}>{label}</span>
       </header>
       <p class="lighting-source">{lighting?.player != null ? `Player ${lighting.player}` : 'No tempo master'} · {lighting?.tempo == null ? 'BPM unknown' : `${lighting.tempo.toFixed(2)} BPM`} · {lighting?.phrase ?? 'Default palette'} · {{ fan: 'Fanning', groups: 'Group exchange', all: 'All spots', wash: 'Soft wash' }[lighting?.pattern ?? 'fan']}</p>
+      <p class="mixer-note">Ape Labs RGBW · 8 Kanäle / 16 Bit · Bildschirmfarben angenähert.
+        {' '}TX16: zuletzt per UDP an Showtec gesendet (0–65535, Live-Ausgabe, Abfrage alle 2 s).
+        {output?.lastFrame ? ` Stand ${new Date(output.lastSentMs!).toLocaleTimeString()}.`
+          : output && output.lastFrame === undefined ? ' Kanaldiagnose benötigt Sender-Neustart.' : ' Noch keine Kanalwerte verfügbar.'}
+      </p>
       <div class="lighting-rig">
         {(['left', 'right'] as const).map(side => (
           <div class="lighting-bank" key={side} role="group" aria-label={`${side === 'left' ? 'Left' : 'Right'} RGB-PAR spots`}>
             <h3>{side === 'left' ? 'Left' : 'Right'}</h3>
-            <div class="lighting-spots">{rendered?.spots.filter(spot => spot.side === side).map(spot => (
+            <div class="lighting-spots">{rendered?.spots.filter(spot => spot.side === side).map(spot => {
+              const sent = output?.lastFrame?.find(fixture => fixture.id === spot.id);
+              return (
               <div class="lighting-spot" key={spot.id} data-spot={spot.id} data-lit={spot.intensity > 0 ? 'true' : 'false'}>
-                <span class="lighting-lens" style={{ '--spot-color': `rgb(${spot.color.slice(0, 3).map((channel, index) => Math.round(Math.min(1, channel + (spot.color[3] ?? 0) * [1, 0.85, 0.65][index]!) * spot.intensity * 255)).join(',')})` }} aria-hidden="true" />
+                <span class="lighting-lens" style={{ '--spot-color': `rgb(${apeLabsPreviewRgb(spot).join(',')})` }} aria-hidden="true" />
                 <span>{spot.id}</span>
+                <dl class="lighting-values" aria-label={`${spot.id}: zuletzt gesendete 16-Bit-Werte`}>
+                  {(['R', 'G', 'B', 'W'] as const).map((channel, index) => {
+                    const [coarse, fine] = APE_LABS_RGBW_16.channels[index]!;
+                    return <div key={channel} title={sent ? `DMX ${sent.startAddress + coarse!}/${sent.startAddress + fine!} (grob/fein)` : 'Keine Kanalwerte verfügbar'}>
+                      <dt>{channel}</dt><dd>{sent?.values[index] ?? '–'}</dd>
+                    </div>;
+                  })}
+                </dl>
                 <span class="sr-only">{spot.intensity > 0 ? `RGBW ${spot.color.map(channel => Math.round(channel * 100)).join(', ')}%, ${Math.round(spot.intensity * 100)}%` : 'Off'}</span>
               </div>
-            ))}</div>
+            ); })}</div>
           </div>
         ))}
       </div>

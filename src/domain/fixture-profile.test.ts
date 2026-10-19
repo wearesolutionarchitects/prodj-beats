@@ -1,8 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { APE_LABS_RGBW_16, encodeApeLabsRgbw16 } from './fixture-profile';
+import { APE_LABS_RGBW_16, encodeApeLabsRgbw16, decodeApeLabsRgbw16, apeLabsPreviewRgb } from './fixture-profile';
 import type { RGBW } from './light-output';
 import { lightingFrame, type LightingSnapshot } from './lighting';
+import { observeSession, type EventSource } from '../application/event-source';
+import { ProDjLinkSession } from '../application/session';
+import { ReplayEventSource } from '../infrastructure/event-sources';
+import { fixtureEvents } from '../infrastructure/fixtures';
+import { encodeMonitorUniverse, decodeMonitorUniverse } from './lighting-patch';
 
 test('Ape Labs 16-bit profile isolates R, G, B and warm white in manufacturer channel order', () => {
   for (const [color, expected] of [
@@ -65,4 +70,44 @@ test('shared lighting interpolation preserves fractional RGBW values through fix
   assert.equal(bytes[0]! * 256 + bytes[1]!, Math.round(0.5 * 0.775 * 65535));
   assert.equal(bytes[6]! * 256 + bytes[7]!, Math.round(0.5 * 0.775 * 65535));
   assert.deepEqual(encodeApeLabsRgbw16(lightingFrame({ ...state, status: 'waiting' }, 112.5).spots[0]!), new Uint8Array(8));
+});
+
+test('profile decoding preserves R/B/G/W coarse-fine routing and exact 16-bit values', () => {
+  const bytes = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+  assert.deepEqual(decodeApeLabsRgbw16(bytes), [258, 1286, 772, 1800]);
+  assert.throws(() => decodeApeLabsRgbw16(bytes.slice(1)), RangeError);
+  for (const value of [0, 1, 255, 256, 257, 32768, 65535]) {
+    assert.deepEqual(decodeApeLabsRgbw16(encodeApeLabsRgbw16({ color: [1, 1, 1, 1], intensity: value / 65535 })), Array(4).fill(value));
+  }
+});
+
+test('preview uses encoded fixture levels once, with sRGB transfer, clipping and warm-white approximation', () => {
+  assert.deepEqual(apeLabsPreviewRgb({ color: [1, 0.5, 0.25, 0], intensity: 1 }), [255, 188, 137]);
+  assert.deepEqual(apeLabsPreviewRgb({ color: [1, 0, 0, 0], intensity: 0.5 }), [188, 0, 0]);
+  assert.deepEqual(apeLabsPreviewRgb({ color: [0, 1, 0, 0], intensity: 1 }), [0, 255, 0]);
+  assert.deepEqual(apeLabsPreviewRgb({ color: [0, 0, 1, 0], intensity: 1 }), [0, 0, 255]);
+  assert.deepEqual(apeLabsPreviewRgb({ color: [0, 0, 0, 1], intensity: 1 }), [255, 237, 211]);
+  assert.deepEqual(apeLabsPreviewRgb({ color: [1, 1, 1, 1], intensity: 1 }), [255, 255, 255]);
+  assert.deepEqual(apeLabsPreviewRgb({ color: [1, 1, 1, 1], intensity: 0 }), [0, 0, 0]);
+  assert.deepEqual(apeLabsPreviewRgb({ color: [0, 0, 0, 0], intensity: 1 }), [0, 0, 0]);
+});
+
+test('live and replay share identical profile colors and decoded fixture output through transitions', () => {
+  const collect = (source: EventSource) => {
+    const frames: unknown[] = [];
+    const stop = observeSession(source, new ProDjLinkSession(), snapshot => {
+      if (!snapshot.lastEvent) return;
+      const frame = lightingFrame(snapshot.lighting, snapshot.lastEvent.ms + 100);
+      frames.push({ colors: frame.spots.map(apeLabsPreviewRgb), sent: decodeMonitorUniverse(encodeMonitorUniverse(frame)) });
+    }, () => {});
+    stop();
+    return frames;
+  };
+  const live = collect({ subscribe(observer) {
+    observer.status('live');
+    fixtureEvents.forEach(event => observer.event(event));
+    return () => {};
+  } });
+  assert.equal(live.length, fixtureEvents.length);
+  assert.deepEqual(collect(new ReplayEventSource(fixtureEvents, 0)), live);
 });
