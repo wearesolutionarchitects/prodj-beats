@@ -49,7 +49,7 @@ soweit vom Gerät und vom geladenen Track verfügbar:
 
 - Tracktitel, Interpret, Album und Cover.
 - Wiedergabestatus, Laufzeit und Restzeit; rote Restzeitanzeige ab 20 Sekunden.
-- BPM, Beat im Takt, absolute Track-Beatposition und musikalische Phrasen.
+- BPM, Beat im Takt, absolute Track-Beatposition, übermittelter Mood und musikalische Phrasen.
 - Tempo-Master mit effektivem Tempo, Grund-BPM, Pitch und Sync-Status.
 - Beat-Anzeige 1–4, gemeldete Masterübergaben und On-Air-Kanäle.
 - Virtuelle Lighting-Vorschau mit acht RGB-PAR-Spots: links und rechts je vier,
@@ -224,7 +224,7 @@ device and loaded track, the interface shows:
 
 - Track title, artist, album and artwork.
 - Playback status, elapsed and remaining time; red remaining time at 20 seconds or less.
-- BPM, beat within the bar, absolute track beat and musical phrases.
+- BPM, beat within the bar, absolute track beat, reported mood and musical phrases.
 - Tempo master with effective tempo, base BPM, pitch and sync status.
 - A 1–4 beat indicator, reported master handoffs and on-air channels.
 - Virtual lighting preview with eight RGB-PAR spots: four on each side,

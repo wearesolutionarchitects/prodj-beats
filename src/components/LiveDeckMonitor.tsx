@@ -162,10 +162,11 @@ function DeckCardView({ deck }: { deck: DeckState }) {
           <Fact label="BPM" value={deck.beat?.tempo?.toFixed(2) ?? deck.track?.tempo?.toFixed(2) ?? '-'} />
           <Fact label="Track beat" value={deck.beat?.trackBeat ?? '-'} />
           <Fact label="Beat in bar" value={deck.beat?.beatWithinBar ?? '-'} />
-          <Fact label="Phrase" value={deck.beat?.phrase?.kind ?? '-'} />
-          <Fact label="Progress" value={phraseProgress(deck)} fullWidth />
+          <Fact label="Progress" value={phraseProgress(deck)} />
           <Fact label="Playing time" value={formatTime(time.playingMs)} timing />
           <Fact label="Remaining time" value={formatTime(time.remainingMs)} timing warning={time.ending} />
+          <Fact label="Mood" value={deck.structure?.mood ?? '-'} />
+          <Fact label="Phrase" value={deck.beat?.phrase?.kind ?? '-'} />
         </dl>
       </div>
 
