@@ -42,6 +42,30 @@ Die Idee: Bewährte, funktionierende Geräte mit ergänzender Software länger u
 vielseitiger nutzen. ProDJ Beats ist ein unabhängiges Entwicklungsprojekt;
 es besteht keine Verbindung zu AlphaTheta oder Pioneer DJ.
 
+### Ziel und Scope
+
+ProDJ Beats entwickelt eine **datenbasierte, zentral gesteuerte Lighting-Lösung**.
+Aus verfügbaren ProDJ-Link-Daten und rekordbox-Trackanalysen – Tempo-Master,
+Beats, Trackposition, Mood, Phrasen und Waveform – leitet die Software
+nachvollziehbare Lichtmuster, Geschwindigkeiten, Überblendungen und Helligkeiten
+ab. Bestehende DJ-Hardware soll damit länger und vielseitiger nutzbar bleiben.
+
+Die musikalische Steuerung entsteht in unserer gemeinsamen Softwarelogik,
+unabhängig von den eingebauten Mikrofonen und Sound-to-Light-Automatiken der
+Leuchten. Die Effekte werden nicht aus dem vom Gerätemikrofon aufgenommenen
+Raumklang oder aus herstellereigenen Musikprogrammen abgeleitet. Analysierte
+Waveform-Werte beschreiben die relative Track-Dynamik, nicht den tatsächlich
+hörbaren Mixer-Ausgangspegel.
+
+Zum Scope gehören die verlässliche Datenzuordnung, die gemeinsame Verarbeitung
+für Live und Replay, die Browser-Vorschau und getrennte, ausdrücklich aktivierte
+Ausgabeadapter. Die Entscheidung über das Lichtverhalten bleibt zentral; ein
+Ausgabeadapter übersetzt die berechneten Werte in das jeweilige Ausgabeformat.
+Neue Geräteanbindungen und Hardware-Ausgaben benötigen jeweils einen eigenen
+Nachweis. Fehlende Daten bleiben erkennbar und werden nicht durch vermeintliche
+Mikrofonmessungen ersetzt. Der folgende Abschnitt beschreibt den tatsächlich
+erreichten Stand; das Projektziel ist keine Zusage bereits fertiger Integrationen.
+
 ### Aktueller Stand
 
 Der Prototyp wurde mit einem **XDJ-XZ** live geprüft. Die Oberfläche zeigt,
@@ -269,6 +293,29 @@ to bring ProDJ Link network data into a shared web interface.
 The aim is to extend the useful life and capabilities of working DJ equipment
 through complementary software. ProDJ Beats is an independent development
 project, with no affiliation to AlphaTheta or Pioneer DJ.
+
+### Goal and scope
+
+ProDJ Beats is developing a **data-driven, centrally controlled lighting solution**.
+Using available ProDJ Link data and rekordbox track analysis – tempo master,
+beats, track position, mood, phrases and waveform – the software derives
+traceable lighting patterns, speeds, fades and brightness. The aim is to extend
+the useful life and capabilities of existing DJ hardware.
+
+Musical control resides in our shared software logic, independently of fixture
+microphones and built-in sound-to-light automation. Effects are not derived
+from room sound captured by a fixture microphone or from manufacturer-specific
+music programs. Analysed waveform values describe relative track dynamics,
+not the actual audible mixer output level.
+
+The scope includes reliable data association, shared live/replay processing,
+the browser preview and separate, explicitly enabled output adapters. Lighting
+behavior is determined centrally; an output adapter translates the calculated
+values into its output format. Each new device integration and hardware output
+requires its own verification. Missing data remains visible and is not replaced
+with assumed microphone measurements. The following section describes the
+actual implementation status; the project goal does not imply that planned
+integrations are already complete.
 
 ### Current status
 
