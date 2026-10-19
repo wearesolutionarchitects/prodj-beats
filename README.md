@@ -181,6 +181,8 @@ Ausgabe an die Anwendung, USB-Ausgabe und RB-DMX1-Integration sind noch offen.
 Die Java-Bridge fordert über den bestehenden beat-link-`WaveformFinder` die
 Detail-Waveform an. Im gemeinsamen Dev-Terminal erscheinen `[waveform]`-Zeilen
 mit Verfügbarkeit, Segmentzahl, Trackdauer und aktueller Positionszuordnung.
+Die Diagnose wird zusätzlich dauerhaft in `apps/bridge/logs/events.jsonl`
+gespeichert (Typ `waveform`, nur Log, keine Weiterleitung an die GUI).
 Die Zuordnung prüft dieselbe Track-Identität `{id, player, slot}` wie die
 Wiedergabeposition. Detaildaten haben 150 Segmente pro Tracksekunde; fehlende
 Positionen und Positionen außerhalb der Waveform bleiben ungültig.
@@ -379,6 +381,8 @@ the application, USB output and RB-DMX1 integration remain future work.
 The Java bridge requests detailed waveforms using the existing beat-link
 `WaveformFinder`. The shared development terminal prints `[waveform]` lines with
 availability, segment count, track duration and current position mapping.
+Diagnostics are also persisted in `apps/bridge/logs/events.jsonl` (type
+`waveform`, log-only, not forwarded to the UI).
 Waveform and playback position must match the same `{id, player, slot}` track
 identity. Detail data has 150 segments per track second; missing or out-of-range
 positions remain invalid. Logging is limited to three valid position examples

@@ -82,6 +82,13 @@ final class EventBroadcaster implements AutoCloseable {
         System.out.println(message);
     }
 
+    // Keep bounded waveform diagnostics inspectable after terminal scrollback expires.
+    // They are log-only: no UI event, device control or lighting output.
+    void logWaveformDiagnostic(String message) {
+        writeEventLog(new CanonicalEvent("waveform", 2, System.currentTimeMillis(), Map.of("message", message)).toJson());
+        System.out.println(message);
+    }
+
     private void writeEventLog(String message) {
         synchronized (eventLog) {
             try {

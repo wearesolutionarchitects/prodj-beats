@@ -130,7 +130,7 @@ final class BeatLinkAdapter implements AutoCloseable {
             Object finder = singleton("org.deepsymmetry.beatlink.data.WaveformFinder");
             Object detail = finder.getClass().getMethod("getLatestDetailFor", int.class).invoke(finder, player);
             if (detail == null || !source.equals(sourcePayload(fieldValue(detail, "dataReference")))) {
-                if (waveformMissing.add(player)) System.out.println("[waveform] player=" + player + " detail=pending (no matching track waveform yet)");
+                if (waveformMissing.add(player)) broadcaster.logWaveformDiagnostic("[waveform] player=" + player + " detail=pending (no matching track waveform yet)");
                 return;
             }
             int frames = ((Number) detail.getClass().getMethod("getFrameCount").invoke(detail)).intValue();
@@ -145,14 +145,14 @@ final class BeatLinkAdapter implements AutoCloseable {
                     height = String.valueOf(detail.getClass().getMethod("segmentHeight", int.class, int.class).invoke(detail, index, 1));
                 }
             }
-            System.out.println("[waveform] player=" + player + " source=" + source + " detail=available frames=" + frames
+            broadcaster.logWaveformDiagnostic("[waveform] player=" + player + " source=" + source + " detail=available frames=" + frames
                     + " durationMs=" + duration + " positionMs=" + positionMs + " segment=" + index
                     + " height=" + height + " identity=matched mapping=" + (index >= 0 ? "valid" : "waiting-for-position"));
             waveformSampleAt.put(player, now);
             // Keep waiting if TimeFinder has not resolved the matching position yet.
             if (index >= 0) waveformSampleCount.merge(player, 1, Integer::sum);
         } catch (ReflectiveOperationException | RuntimeException ex) {
-            if (waveformMissing.add(player)) System.out.println("[waveform] player=" + player + " diagnostic unavailable: " + describe(ex));
+            if (waveformMissing.add(player)) broadcaster.logWaveformDiagnostic("[waveform] player=" + player + " diagnostic unavailable: " + describe(ex));
         }
     }
 

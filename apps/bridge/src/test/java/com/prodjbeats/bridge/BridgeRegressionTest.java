@@ -28,6 +28,9 @@ public final class BridgeRegressionTest {
         try (var broadcaster = new EventBroadcaster(log)) {
             var sink = new RecordingSink();
             broadcaster.add(sink);
+            broadcaster.logWaveformDiagnostic("[waveform] diagnostic regression marker");
+            check(Files.readString(log).contains("diagnostic regression marker"), "waveform diagnostics persist in event log");
+            check(sink.messages.stream().noneMatch(message -> message.contains("diagnostic regression marker")), "waveform diagnostics are not broadcast");
             var adapter = new BeatLinkAdapter(broadcaster);
             // Real decoder gets an isolated broadcaster so its snapshot cannot affect other tests.
             var decoderLog = Files.createTempFile("prodj-decoder-test", ".jsonl");
@@ -166,6 +169,9 @@ public final class BridgeRegressionTest {
         try (var broadcaster = new EventBroadcaster(log)) {
             var sink = new RecordingSink();
             broadcaster.add(sink);
+            broadcaster.logWaveformDiagnostic("[waveform] diagnostic regression marker");
+            check(Files.readString(log).contains("diagnostic regression marker"), "waveform diagnostics persist in event log");
+            check(sink.messages.stream().noneMatch(message -> message.contains("diagnostic regression marker")), "waveform diagnostics are not broadcast");
             var adapter = new BeatLinkAdapter(broadcaster);
             Class<?> finderType = Class.forName("org.deepsymmetry.beatlink.BeatFinder");
             Object finder = finderType.getMethod("getInstance").invoke(null);
