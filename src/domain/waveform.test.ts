@@ -92,6 +92,28 @@ test('live and replay produce identical waveform envelopes and intermediate brig
   stop();
 });
 
+test('live and replay share energy-driven color targets across seeks, bar changes and palette exchange', () => {
+  const sequence = [...events,
+    raw('position', 500, { player: 1, source, positionMs: 5000, playbackStatus: 'playing' }),
+    raw('beat', 501, { player: 1, tempo: 120, beatWithinBar: 1, trackBeat: 5 }),
+    raw('beat', 1001, { player: 1, tempo: 120, beatWithinBar: 2, trackBeat: 6 }),
+    raw('position', 1500, { player: 1, source, positionMs: 2000, playbackStatus: 'playing' }),
+    raw('beat', 1501, { player: 1, tempo: 120, beatWithinBar: 1, trackBeat: 17 })];
+  const live = new ProDjLinkSession(), replay = new ProDjLinkSession();
+  const socket = new Socket();
+  const snapshots: unknown[] = [], replaySnapshots: unknown[] = [];
+  const stop = observeSession(new WebSocketEventSource('ws://test', () => socket as unknown as WebSocket), live,
+    snapshot => { if (snapshot.lastEvent) snapshots.push(lightingFrame(snapshot.lighting, snapshot.lastEvent.ms + 100)); }, () => {});
+  socket.dispatchEvent(new Event('open'));
+  sequence.forEach(event => socket.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(event) })));
+  observeSession(new ReplayEventSource(sequence, 0), replay,
+    snapshot => { if (snapshot.lastEvent) replaySnapshots.push(lightingFrame(snapshot.lighting, snapshot.lastEvent.ms + 100)); }, () => {});
+  assert.deepEqual(replaySnapshots, snapshots);
+  assert.equal(snapshots.length, sequence.length);
+  assert.deepEqual(live.snapshot().lighting, replay.snapshot().lighting);
+  stop();
+});
+
 
 test('master changes cannot reuse another decks waveform and explicit removal restores neutral lighting', () => {
   const session = new ProDjLinkSession();

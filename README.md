@@ -162,6 +162,17 @@ die letzten Werte mit Fehlerstatus sichtbar. Auch im Browser-Replay beschreiben
 diese Werte ausschließlich den separaten Live-Sender. UDP-Erfolg ist weiterhin
 keine Bestätigung des physischen Leuchtenzustands.
 
+Die Phrasen nutzen abgestimmte Farbpaare: Intro/Outro Blau/Cyan, Refrain
+Gold/Koralle, Break Violett/Blau und Strophe beziehungsweise unbekannte Phrase
+Grün/Blau. Beide Bänke wechseln ihre Farbrollen alle vier Takte auf Beat 1.
+Eine separate, über zwei Sekunden geglättete Waveform-Energie steuert Sättigung
+und eine auf ±8 Grad begrenzte Farbtonverschiebung; die bisherige dynamische
+Helligkeit bleibt separat. Es handelt sich um eine Amplitudennäherung, keine
+Frequenz- oder Harmonieerkennung. Neue Farbziele werden ausschließlich auf
+Beat 1 übernommen und weich überblendet. Fehlende Waveform-/Positionsdaten
+verwenden neutrale Farben, ohne Energie zu erfinden. Live und Replay nutzen
+dieselbe positionsbezogene Berechnung; der Geräte-/Trackwechsel setzt sie zurück.
+
 Die acht virtuellen RGB-PAR-Spots ergänzen die Track-Anzeige um:
 
 - **Fanning:** gespiegelte Lichtfolgen mit Hin- und Rücklauf.
@@ -478,6 +489,16 @@ Dashes indicate no successful hardware send yet; errors retain
 the last successful values alongside error status. Browser replay still shows
 the separate live sender's values. UDP success does not confirm physical fixture
 state.
+
+Phrases use related color pairs: blue/cyan for intro/outro, gold/coral for chorus,
+violet/blue for breaks and green/blue for verses or unknown phrases. Both banks
+exchange color roles every four bars on beat 1. A separate waveform energy
+envelope smoothed over two seconds adjusts saturation and limits hue shifts to
+±8 degrees; the existing dynamic brightness remains separate. This is an
+amplitude-based approximation, not frequency or musical harmony detection.
+New color targets latch only on beat 1 and fade smoothly. Missing waveform or
+position data uses neutral palette colors without inventing energy. Live and
+replay share the same position-based calculation, reset on device/track changes.
 
 The eight virtual RGB-PAR spots complement the track display with:
 

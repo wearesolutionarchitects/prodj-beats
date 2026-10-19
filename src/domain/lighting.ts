@@ -1,4 +1,5 @@
-import { waveformBrightness, type WaveformEnvelope } from './waveform';
+import { waveformBrightness, waveformEnergy, type WaveformEnvelope } from './waveform';
+import { phrasePalette } from './lighting-color';
 import type { DeckState } from './deck';
 import type { MasterEvent, ProDjLinkEvent } from './events';
 
@@ -35,14 +36,7 @@ export interface LightingSnapshot {
 }
 
 const DARK: RGBW = [0, 0, 0, 0];
-const BASE: RGBW = [61 / 255, 220 / 255, 151 / 255, 0];
 const isPaused = (deck: DeckState | null) => !!deck && ['paused', 'cued', 'ended', 'stopped'].includes(deck.playbackStatus);
-function phraseColor(phrase: string | null): RGBW {
-  if (phrase?.startsWith('intro') || phrase?.startsWith('outro')) return [75 / 255, 166 / 255, 245 / 255, 0];
-  if (phrase?.startsWith('chorus')) return [250 / 255, 190 / 255, 100 / 255, 0];
-  if (phrase?.startsWith('break')) return [176 / 255, 120 / 255, 240 / 255, 0];
-  return BASE;
-}
 
 // Phrase-driven looks; without structure, rotate every four bars using only
 // observed beat positions. No random choices or additional timing source.
@@ -87,6 +81,8 @@ export class LightingPreview {
   private effectStep = -1;
   private profileOrigin = 0;
   private pattern: LightingPattern = 'fan';
+  private palette = phrasePalette(null);
+  private paletteSwap = false;
   private state: LightingSnapshot = this.render(null, null);
 
   apply(event: ProDjLinkEvent, master: MasterEvent | null, deck: DeckState | null): void {
@@ -108,6 +104,8 @@ export class LightingPreview {
       this.effectStep = -1;
       this.profileOrigin = 0;
       this.frozenAt = null;
+      this.palette = phrasePalette(null);
+      this.paletteSwap = false;
     }
     const paused = isPaused(deck);
     if (paused && this.frozenAt === null) this.frozenAt = event.ms;
@@ -124,20 +122,30 @@ export class LightingPreview {
         this.step = event.payload.trackBeat === null ? (this.beat === null ? beat - 1 : this.step + 1) : event.payload.trackBeat - 1;
         const oldProfile = this.profile;
         const oldPhrase = this.activePhrase;
+        const oldPalette = this.palette;
+        const oldSwap = this.paletteSwap;
         if (beat === 1) {
           this.activePhrase = deck?.beat?.phrase?.kind ?? null;
           this.profile = lightingProfile(deck?.structure?.mood ?? null, this.activePhrase);
+          const rate = master?.payload.tempo && master.payload.bpm ? master.payload.tempo / master.payload.bpm : 1;
+          const position = deck?.positionMs == null ? null : deck.positionMs + Math.max(0, event.ms - (deck.positionUpdatedAt ?? event.ms)) * rate;
+          this.palette = phrasePalette(this.activePhrase, waveformEnergy(deck?.waveform, position));
+          this.paletteSwap = Math.floor(this.step / 16) % 2 === 1;
         }
         const tempo = event.payload.tempo ?? master?.payload.tempo;
         this.duration = tempo != null && tempo > 0 ? 60000 / tempo : 500;
         const profileChanged = oldPhrase !== this.activePhrase || JSON.stringify(oldProfile) !== JSON.stringify(this.profile);
+        const colorChanged = oldSwap !== this.paletteSwap || JSON.stringify(oldPalette) !== JSON.stringify(this.palette);
         if (profileChanged) this.profileOrigin = this.step;
         const effectStep = Math.max(0, Math.floor((this.step - this.profileOrigin) / this.profile.stepBeats));
-        if (effectStep !== this.effectStep || profileChanged) {
-          this.from = this.effectStep < 0 ? previousFrame.spots : this.state.spots;
+        if (effectStep !== this.effectStep || profileChanged || colorChanged) {
+          this.from = this.effectStep < 0 ? previousFrame.spots : this.state.spots.map((spot, index) => ({
+            ...spot, color: previousFrame.spots[index]?.color ?? spot.color
+          }));
           this.effectStep = effectStep;
           this.transitionAt = event.ms;
           this.transitionDuration = this.duration * this.profile.stepBeats * this.profile.fadeFraction;
+          if (colorChanged) this.transitionDuration = Math.max(this.transitionDuration, this.duration * 2);
           this.pattern = selectPattern(this.activePhrase, this.step, effectStep % 4 + 1);
         }
         this.frozenAt = null;
@@ -155,7 +163,6 @@ export class LightingPreview {
     const player = deck?.device?.active === false ? null : master?.payload.player ?? null;
     const paused = isPaused(deck);
     const phrase = deck?.beat?.phrase?.kind ?? null;
-    const color = phraseColor(this.activePhrase);
     return {
       dynamics: deck?.waveform && deck.positionMs !== null ? {
         waveform: deck.waveform, positionMs: deck.positionMs, at: deck.positionUpdatedAt ?? 0,
@@ -171,6 +178,7 @@ export class LightingPreview {
       beatWithinBar: this.beat,
       animation: { from: this.from, at: this.beatAt, duration: this.duration, frozenAt: this.frozenAt, transitionAt: this.transitionAt, transitionDuration: this.transitionDuration },
       spots: (['left', 'right'] as const).flatMap(side => Array.from({ length: 4 }, (_, index) => {
+        const color = this.palette[(side === 'right') !== this.paletteSwap ? 1 : 0];
         const intensity = player !== null && this.beat !== null ? spotIntensity(this.pattern, side, index, Math.max(0, this.effectStep)) : 0;
         return { id: `${side === 'left' ? 'L' : 'R'}${index + 1}`, side, color: intensity > 0 ? color : DARK, intensity };
       }))
