@@ -145,8 +145,11 @@ nicht verändert.
 
 Unter jedem Spot stehen die zuletzt erfolgreich per UDP gesendeten **TX16-Werte
 R/G/B/W (0–65535)**. Sie werden aus den gesendeten DMX-Bytes zurückgelesen, nicht
-aus der aktuellen Browseranimation geschätzt. Der Stand wird mit Zeitangabe alle
-zwei Sekunden abgefragt und kann deshalb hinter der laufenden Vorschau liegen.
+aus der aktuellen Browseranimation geschätzt. Darunter stehen je Farbe die
+zugehörigen **Grob/Fein-Bytes (je 0–255)**, zum Beispiel `16905` und `66/9`.
+Diese zusätzliche Anzeige verändert keine Ausgabewerte. Der Stand wird mit
+Zeitangabe alle zwei Sekunden abgefragt und kann deshalb hinter der laufenden
+Vorschau liegen.
 Vor dem ersten erfolgreichen Hardware-Senden stehen Striche; bei Fehlern bleiben
 die letzten Werte mit Fehlerstatus sichtbar. Auch im Browser-Replay beschreiben
 diese Werte ausschließlich den separaten Live-Sender. UDP-Erfolg ist weiterhin
@@ -454,7 +457,10 @@ does not change hardware values.
 Each spot shows the last successfully UDP-sent **TX16 R/G/B/W values
 (0–65535)**, decoded from transmitted DMX bytes rather than estimated from the
 browser animation. The timestamped snapshot is polled every two seconds and may
-lag the preview. Dashes indicate no successful hardware send yet; errors retain
+lag the preview. Below each color, **coarse/fine bytes (0–255 each)** provide a
+direct comparison with Protokol, for example `16905` and `66/9`. This additional
+display does not change output values.
+Dashes indicate no successful hardware send yet; errors retain
 the last successful values alongside error status. Browser replay still shows
 the separate live sender's values. UDP success does not confirm physical fixture
 state.

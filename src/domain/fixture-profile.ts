@@ -17,6 +17,12 @@ export const APE_LABS_RGBW_16 = Object.freeze({
 
 export type Rgbw16 = readonly [red: number, green: number, blue: number, warmWhite: number];
 
+/** Display an existing TX16 value as its two original DMX bytes; no output conversion. */
+export function splitDmx16(value: number): readonly [coarse: number, fine: number] {
+  if (!Number.isInteger(value) || value < 0 || value > 65535) throw new RangeError('DMX 16-bit value must be an integer between 0 and 65535');
+  return [value >>> 8, value & 0xff];
+}
+
 /** Encode one fixture; dimming applies once, before the only output quantization. */
 export function encodeApeLabsRgbw16(light: LightOutput, masterDimmer = 1): Uint8Array {
   assertUnitValue(light.intensity);

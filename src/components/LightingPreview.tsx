@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { lightingFrame, type LightingSnapshot } from '../domain/lighting';
 import type { LightingOutputStatus } from '../domain/lighting-output-status';
-import { APE_LABS_RGBW_16, apeLabsPreviewRgb } from '../domain/fixture-profile';
+import { APE_LABS_RGBW_16, apeLabsPreviewRgb, splitDmx16 } from '../domain/fixture-profile';
 
 export default function LightingPreview({ lighting, eventMs, timeScale, running }: { lighting?: LightingSnapshot; eventMs: number; timeScale: number; running: boolean }) {
   const [time, setTime] = useState(eventMs);
@@ -53,6 +53,7 @@ export default function LightingPreview({ lighting, eventMs, timeScale, running 
       <p class="lighting-source">{lighting?.player != null ? `Player ${lighting.player}` : 'No tempo master'} · {lighting?.tempo == null ? 'BPM unknown' : `${lighting.tempo.toFixed(2)} BPM`} · {lighting?.phrase ?? 'Default palette'} · {{ fan: 'Fanning', groups: 'Group exchange', all: 'All spots', wash: 'Soft wash' }[lighting?.pattern ?? 'fan']}</p>
       <p class="mixer-note">Ape Labs RGBW · 8 Kanäle / 16 Bit · Bildschirmfarben angenähert.
         {' '}TX16: zuletzt per UDP an Showtec gesendet (0–65535, Live-Ausgabe, Abfrage alle 2 s).
+        {' '}Darunter Grob/Fein (je 0–255).
         {output?.lastFrame ? ` Stand ${new Date(output.lastSentMs!).toLocaleTimeString()}.`
           : output && output.lastFrame === undefined ? ' Kanaldiagnose benötigt Sender-Neustart.' : ' Noch keine Kanalwerte verfügbar.'}
       </p>
@@ -69,8 +70,13 @@ export default function LightingPreview({ lighting, eventMs, timeScale, running 
                 <dl class="lighting-values" aria-label={`${spot.id}: zuletzt gesendete 16-Bit-Werte`}>
                   {(['R', 'G', 'B', 'W'] as const).map((channel, index) => {
                     const [coarse, fine] = APE_LABS_RGBW_16.channels[index]!;
+                    const value = sent?.values[index];
+                    const bytes = value == null ? null : splitDmx16(value);
                     return <div key={channel} title={sent ? `DMX ${sent.startAddress + coarse!}/${sent.startAddress + fine!} (grob/fein)` : 'Keine Kanalwerte verfügbar'}>
-                      <dt>{channel}</dt><dd>{sent?.values[index] ?? '–'}</dd>
+                      <dt>{channel}</dt><dd>
+                        <span>{value ?? '–'}</span>
+                        <span class="lighting-bytes" aria-label={bytes ? `Grob ${bytes[0]}, Fein ${bytes[1]}` : 'Grob und Fein nicht verfügbar'}>{bytes ? `${bytes[0]}/${bytes[1]}` : '–/–'}</span>
+                      </dd>
                     </div>;
                   })}
                 </dl>

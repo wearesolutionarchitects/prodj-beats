@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { APE_LABS_RGBW_16, encodeApeLabsRgbw16, decodeApeLabsRgbw16, apeLabsPreviewRgb } from './fixture-profile';
+import { APE_LABS_RGBW_16, encodeApeLabsRgbw16, decodeApeLabsRgbw16, apeLabsPreviewRgb, splitDmx16 } from './fixture-profile';
 import type { RGBW } from './light-output';
 import { lightingFrame, type LightingSnapshot } from './lighting';
 import { observeSession, type EventSource } from '../application/event-source';
@@ -8,6 +8,29 @@ import { ProDjLinkSession } from '../application/session';
 import { ReplayEventSource } from '../infrastructure/event-sources';
 import { fixtureEvents } from '../infrastructure/fixtures';
 import { encodeMonitorUniverse, decodeMonitorUniverse } from './lighting-patch';
+
+test('TX16 display splits zero, fine-byte carry, example and full scale into coarse/fine', () => {
+  for (const [value, bytes] of [[0, [0, 0]], [1, [0, 1]], [255, [0, 255]], [256, [1, 0]], [16905, [66, 9]], [65535, [255, 255]]] as const) {
+    assert.deepEqual(splitDmx16(value), bytes);
+  }
+  for (let value = 0; value <= 65535; value++) {
+    const [coarse, fine] = splitDmx16(value);
+    assert.ok(coarse >= 0 && coarse <= 255 && fine >= 0 && fine <= 255);
+    assert.equal(coarse * 256 + fine, value);
+  }
+  for (const value of [-1, 65536, 0.5, NaN, Infinity]) assert.throws(() => splitDmx16(value), RangeError);
+});
+
+test('display byte pairs match the unchanged RGBW encoder in fixture channel order', () => {
+  const light = { color: [0.125, 0.5, 0.75, 1] as const, intensity: 0.6 };
+  const data = encodeApeLabsRgbw16(light);
+  const before = data.slice();
+  decodeApeLabsRgbw16(data).forEach((value, index) => {
+    const [coarse, fine] = APE_LABS_RGBW_16.channels[index]!;
+    assert.deepEqual(splitDmx16(value), [data[coarse!]!, data[fine!]!]);
+  });
+  assert.deepEqual(data, before);
+});
 
 test('Ape Labs 16-bit profile isolates R, G, B and warm white in manufacturer channel order', () => {
   for (const [color, expected] of [

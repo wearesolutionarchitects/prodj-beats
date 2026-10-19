@@ -392,5 +392,6 @@ h2 {
 .lighting-values { margin: 0; font-size: 0.7rem; font-variant-numeric: tabular-nums; }
 .lighting-values > div { display: flex; gap: 4px; justify-content: space-between; }
 .lighting-values dt { color: var(--color-text-muted); }
-.lighting-values dd { margin: 0; min-width: 5ch; text-align: right; }
+.lighting-values dd { display: flex; flex-direction: column; margin: 0; min-width: 7ch; text-align: right; }
+.lighting-bytes { color: var(--color-text-muted); }
 @media (max-width: 520px) { .lighting-rig { grid-template-columns: 1fr; gap: 24px; } }
