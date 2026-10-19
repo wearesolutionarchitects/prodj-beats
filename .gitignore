@@ -2,6 +2,7 @@
 node_modules/
 dist/
 .astro/
+.env.local
 apps/bridge/build/
 apps/bridge/lib/*.jar
 apps/bridge/logs/

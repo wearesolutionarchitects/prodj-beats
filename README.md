@@ -94,6 +94,47 @@ Untersuchungsthema; eine Integration ist noch nicht umgesetzt.
 
 ### Lighting-Vorschau
 
+Die Kopfzeile zeigt „Software Analyse“ sowie das konfigurierte Gerät für den
+Hardware-Output mit IP-Adresse. Dafür lokal in `.env.local`
+`PUBLIC_LIGHTING_DEVICE=Showtec NET-2` und `PUBLIC_LIGHTING_ADDRESS=<Controller-IP>`
+setzen. Die Datei bleibt außerhalb von Git; die Werte sind im Browser sichtbar.
+Port 1 ist als Output, Port 2 als Input vorgesehen. Diese Anzeige aktiviert keine
+Hardware-Ausgabe und bestätigt weder Verbindung noch Empfang von Lichtdaten.
+
+#### Optionales Showtec-Ziel (standardmäßig deaktiviert)
+
+Der bestehende zentrale Sender kann zusätzlich zum lokalen Protokol-Monitor
+identische Frames per Unicast an einen Showtec NET-2 senden: UDP 6454,
+**Port-Address / Universe 1**, passend zu Port 1 mit Network 0 / Primary 1.
+Port 2 bleibt Input; das Projekt liest dessen Eingang noch nicht ein.
+Die acht Ape-Labs-Geräte müssen im passenden RGBW-16-Bit-Modus und auf den
+unten dokumentierten Startadressen eingerichtet sein.
+
+Erst nach bestätigter Controller-IP und ausdrücklicher Freigabe in `.env.local`
+aktivieren (Platzhalter ersetzen; dies startet beim nächsten Dev-Start echte Ausgabe):
+
+```dotenv
+ARTNET_SHOWTEC_ENABLED=true
+ARTNET_SHOWTEC_ADDRESS=<Controller-IP>
+ARTNET_LOCAL_ADDRESS=<Ethernet-IP des Entwicklungsrechners>
+```
+
+Ohne exakt `true` wird kein Hardware-Socket geöffnet, auch kein Blackout gesendet.
+Zum Deaktivieren `ARTNET_SHOWTEC_ENABLED=false` setzen. Änderungen am Sender
+über den gemeinsamen Vordergrundbefehl `npm run dev` im VS-Code-Terminal neu
+laden; keinen zweiten Prozess starten. Der Sender verwendet einen freien lokalen
+UDP-Port, sodass Protokol weiterhin 6454 belegen kann. Er sendet mit 30 Hz,
+nutzt dieselbe Session und Lighting-Berechnung und sendet beim regulären Beenden
+einen Null-Frame an die geöffneten Ziele. Verbindungsverlust zur Bridge erzeugt
+Blackout. Ein UDP-Fehler stoppt weitere Showtec-Sendeversuche bis zum Neustart;
+bei Netzwerkausfall oder hartem Prozessabbruch ist Blackout nicht garantiert.
+
+Die GUI liest den tatsächlichen Senderstatus über den bestehenden Dev-Server:
+deaktiviert, bereit, UDP gesendet, Fehler oder beendet. Framezähler und Fehler
+gehören zum Live-Sender; Replay im Browser aktiviert oder steuert ihn nicht.
+UDP-Erfolg bestätigt keinen Empfang am Controller. Der statische Build enthält
+keinen Sender und meldet dessen Status als nicht verfügbar.
+
 Die acht virtuellen RGB-PAR-Spots ergänzen die Track-Anzeige um:
 
 - **Fanning:** gespiegelte Lichtfolgen mit Hin- und Rücklauf.
@@ -183,11 +224,12 @@ werden Nullwerte gesendet. Fehlende weitere Beats lassen den letzten Puls auskli
 Pause hält entsprechend der gemeinsamen Lighting-Logik den Zustand.
 Beim geordneten Beenden wird ein abschließendes Nullpaket gesendet.
 
-Der Sender bindet ausschließlich Loopback mit automatisch gewähltem Quellport,
+Im Standardbetrieb bindet der Sender ausschließlich Loopback mit automatisch gewähltem Quellport,
 weil Protokol den Standardport 6454 bereits belegt. Er öffnet keinen zusätzlichen
 HTTP-/WebSocket-Server und sendet weder ins LAN noch per Broadcast. ArtPoll/Discovery
 und ein vollständiger Hardware-Controller sind nicht Bestandteil dieses lokalen
-Monitorbetriebs. Änderungen der Entwicklungsintegration können einen Neustart über
+Monitorbetriebs. Das oben beschriebene optionale Showtec-Ziel erweitert diesen
+Standard ausdrücklich um eine LAN-Ausgabe. Änderungen der Entwicklungsintegration können einen Neustart über
 `npm run dev` im bestehenden VS-Code-Terminal erfordern; keinen zweiten Start daneben
 ausführen. Statischer Build und Preview starten keinen Monitor-Sender.
 
@@ -345,6 +387,46 @@ investigation; integration has not been implemented.
 
 ### Lighting preview
 
+The header shows “Software Analyse” and the configured hardware output device
+with its IP address. Set `PUBLIC_LIGHTING_DEVICE=Showtec NET-2` and
+`PUBLIC_LIGHTING_ADDRESS=<controller-IP>` in a local `.env.local` file.
+The file stays out of Git; its values are visible in the browser.
+Port 1 is designated as output and port 2 as input. This display does not enable
+hardware output or confirm connectivity or receipt of lighting data.
+
+#### Optional Showtec destination (disabled by default)
+
+The existing central sender can additionally send identical frames to a Showtec
+NET-2 via unicast UDP 6454, **Port-Address / Universe 1**, matching output port 1
+with Network 0 / Primary 1. Port 2 remains an input; the project does not yet
+consume it. The eight Ape Labs fixtures must use the matching RGBW 16-bit mode
+and the start addresses documented below.
+
+Only after verifying the controller IP and explicitly approving hardware output,
+set the following in `.env.local` (replace placeholders; the next development
+start will send real output):
+
+```dotenv
+ARTNET_SHOWTEC_ENABLED=true
+ARTNET_SHOWTEC_ADDRESS=<controller-IP>
+ARTNET_LOCAL_ADDRESS=<development-computer-Ethernet-IP>
+```
+
+Without the exact value `true`, no hardware socket opens and no hardware blackout
+is sent. Set `ARTNET_SHOWTEC_ENABLED=false` to disable it. Reload sender changes
+by restarting the shared foreground `npm run dev` in VS Code; do not start a
+second process. An ephemeral local UDP port avoids conflicts with Protokol on
+6454. Output runs at 30 Hz using the shared session and lighting calculation.
+Orderly shutdown sends a zero frame to open destinations; bridge disconnects
+produce blackout. A UDP error stops further Showtec sends until restart.
+Network failure or abrupt process termination cannot guarantee blackout.
+
+The GUI reads actual sender status from the existing development server:
+disabled, ready, UDP sent, error or closed. Frame counts and errors describe the
+live sender; browser replay neither activates nor controls it. UDP success does
+not confirm controller receipt. Static builds contain no sender and show its
+status as unavailable.
+
 The eight virtual RGB-PAR spots complement the track display with:
 
 - **Fanning:** mirrored light sequences travelling out and back.
@@ -421,10 +503,12 @@ palettes leave warm white at zero. Waiting for sync and transport loss output
 blackout. Missing beats fade the last pulse; pause holds the shared lighting state.
 Orderly shutdown sends a final zero frame.
 
-The sender binds only loopback with an automatically assigned source port because
+By default, the sender binds only loopback with an automatically assigned source port because
 Protokol already occupies port 6454. It opens no additional HTTP/WebSocket server
-and sends no LAN traffic or broadcasts. ArtPoll/discovery and a complete hardware
-controller are outside this local monitoring mode. Integration changes may require
+and sends no LAN traffic or broadcasts. ArtPoll/discovery is outside this
+monitoring mode. The optional Showtec
+destination described above explicitly extends this loopback-only default.
+Integration changes may require
 restarting `npm run dev` in the existing VS Code terminal; never start a second copy.
 Static build and preview do not start monitoring.
 
