@@ -11,6 +11,14 @@ public final class BridgeRegressionTest {
     public static void main(String[] args) throws Exception {
         BeatLinkAdapter.configurePlayerNumber(new RunningCdj());
         checkStandardNumberSelection();
+        check(BeatLinkAdapter.waveformIndex(null, 150) == -1, "unknown waveform position");
+        check(BeatLinkAdapter.waveformIndex(-1L, 150) == -1, "negative waveform position");
+        check(BeatLinkAdapter.waveformIndex(0L, 0) == -1, "empty waveform");
+        check(BeatLinkAdapter.waveformIndex(0L, 150) == 0, "first waveform segment");
+        check(BeatLinkAdapter.waveformIndex(500L, 150) == 75, "half-second waveform position");
+        check(BeatLinkAdapter.waveformIndex(999L, 150) == 149, "last waveform segment");
+        check(BeatLinkAdapter.waveformIndex(1000L, 150) == -1, "end of waveform excluded");
+        check(BeatLinkAdapter.waveformIndex(Long.MAX_VALUE, 150) == -1, "large positions cannot overflow");
         checkOnAirReception();
         var service = new DelayedService();
         check(!BeatLinkAdapter.startService(service), "false startup must not be reported as success");

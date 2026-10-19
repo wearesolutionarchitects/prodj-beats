@@ -10,17 +10,17 @@ Geräteadressen sind für diesen Screenshot ausgeblendet.*
 *Live XDJ-XZ data in the browser: two decks and the tempo master at a glance.
 Device addresses are hidden in this screenshot.*
 
-![Alle acht RGB-PAR-Spots leuchten im Live-Muster / All eight RGB-PAR spots illuminated in the live pattern](docs/images/prodj-beats-lighting-preview.jpg)
+![Adaptive Lighting-Vorschau mit acht RGBW-Spots / Adaptive lighting preview with eight RGBW spots](docs/images/prodj-beats-lighting-preview.jpg)
 
-*Live-Aufnahme des Musters „All spots“: alle acht virtuellen RGB-PAR-Spots
-leuchten gemeinsam zum Tempo-Master. Phrasenmuster ergänzen Fanning,
-Gruppenwechsel, weiche Überblendungen und Beat-Pulse. Keine lokalen
-Geräteadressen im Screenshot; weiterhin reine Vorschau ohne Hardware-Ausgabe.*
+*Aktuelle Live-Aufnahme: Gruppenwechsel in einer Verse-Phrase bei 126,13 BPM.
+Mood und Phrase steuern die Effektgeschwindigkeit; neue Profile greifen auf
+Beat 1. Der Screenshot zeigt die acht virtuellen Spots ohne lokale Geräteadressen.
+Die Browseransicht ist eine Vorschau ohne eigene Hardware-Ausgabe.*
 
-*Live capture of the “All spots” pattern: all eight virtual RGB-PAR spots light
-up together to the tempo master. Phrase-driven patterns combine fanning, group
-exchanges, smooth fades and beat pulses. No local device addresses appear in
-the screenshot; this remains a software preview with no hardware output.*
+*Current live capture: group exchange during a verse at 126.13 BPM. Mood and
+phrase control effect speed; new profiles take effect on beat 1. The screenshot
+shows the eight virtual spots without local device addresses. The browser view
+is a preview with no hardware output of its own.*
 
 ![Pioneer DJ XDJ-XZ im Einsatz / Pioneer DJ XDJ-XZ in use](docs/images/xdj-xz-hardware.jpg)
 
@@ -83,9 +83,31 @@ Die Phrase steuert die Musterwahl:
 | --- | --- |
 | Intro / Outro | Gespiegeltes Fanning mit Hin- und Rücklauf. |
 | Verse / Bridge | Wechsel zwischen linker und rechter Vierergruppe sowie inneren und äußeren Spot-Paaren. |
-| Chorus | Alle acht Spots auf Beat 1 und 3; Gruppenwechsel auf Beat 2 und 4. |
+| Chorus | Lebhafte Wechsel zwischen allen acht Spots und Gruppen. |
 | Break | Gedämpfter Wash über alle acht Spots. |
 | Andere oder fehlende Phrase | Wechsel zwischen Fanning, Gruppen und allen Spots alle vier Takte anhand der empfangenen Beats. |
+
+#### Adaptive Effektgeschwindigkeit
+
+Die adaptive Geschwindigkeit nutzt das effektive BPM-Tempo: bei `mid` oder
+unbekanntem Mood ein Schritt pro Beat im Chorus, alle zwei Beats in Intro/Outro
+und Verse/Bridge, alle vier Beats im Break. Mood `low` verdoppelt die Schrittdauer,
+`high` halbiert sie (begrenzt auf 1–8 Beats). Dies sind Gestaltungsregeln, keine
+Audiopegelmessung. Mood wird unabhängig von Groß-/Kleinschreibung ausgewertet.
+Neue Mood-/Phrasenprofile greifen erst auf Beat 1. Beat-Pulse bleiben an echte
+Beats gebunden; langsamere Muster behalten ihre Überblendung über mehrere Beats.
+Ohne weitere Beats klingt das Licht spätestens nach zwei Beatdauern aus.
+
+Bei 120 BPM dauert ein Beat 500 ms: Mit Mood `mid` wechselt der Chorus alle
+500 ms, eine Verse alle 1.000 ms und ein Break alle 2.000 ms. Musterbewegung,
+Überblendungsdauer und Pulsstärke werden getrennt gesteuert; ruhigere Phrasen
+bekommen längere Übergänge und schwächere Pulse. Live und Replay berechnen
+identische Bilder für dieselbe Ereigniszeit.
+
+Am XDJ-XZ wurde mit Mood `mid` der langsamere Verse-Ablauf und der schnellere
+Chorus live beobachtet; der Profilwechsel Verse → Chorus griff auf Beat 1.
+Mood `low`/`high` und unbekannte Werte sind durch Regressionstests abgedeckt,
+aber in dieser Live-Prüfung nicht als wechselnde Gerätewerte bestätigt.
 
 Die Muster gehen mit weichen Überblendungen ineinander über. Die Oberfläche
 zeigt das aktive Muster neben Tempo und Phrase an.
@@ -153,6 +175,21 @@ Protokol separat prüfen. Standalone-Einstellungen bleiben unberührt.
 
 Die Vorschau steuert **keine Hardware** an. Die Anbindung physischer DMX-/Art-Net-
 Ausgabe an die Anwendung, USB-Ausgabe und RB-DMX1-Integration sind noch offen.
+
+### Waveform-Empfangsdiagnose (experimentell)
+
+Die Java-Bridge fordert über den bestehenden beat-link-`WaveformFinder` die
+Detail-Waveform an. Im gemeinsamen Dev-Terminal erscheinen `[waveform]`-Zeilen
+mit Verfügbarkeit, Segmentzahl, Trackdauer und aktueller Positionszuordnung.
+Die Zuordnung prüft dieselbe Track-Identität `{id, player, slot}` wie die
+Wiedergabeposition. Detaildaten haben 150 Segmente pro Tracksekunde; fehlende
+Positionen und Positionen außerhalb der Waveform bleiben ungültig.
+Pro geladenem Track werden höchstens drei gültige Positionsbeispiele im Abstand
+von mindestens zwei Sekunden protokolliert. Bei Drei-Band-Waveforms wird derzeit
+nur die Positionszuordnung geprüft, kein einzelner Höhenwert ausgegeben.
+Dies ist eine Empfangsdiagnose, noch keine bestätigte XDJ-XZ-Waveform-Unterstützung
+und keine Waveform-Helligkeitssteuerung oder zusätzliche Hardware-Ausgabe.
+Java-Änderungen werden erst nach einem Neustart von `npm run dev` wirksam.
 
 ### Einrichtung und Start
 
@@ -259,9 +296,30 @@ The phrase determines the pattern:
 | --- | --- |
 | Intro / Outro | Mirrored fanning travelling out and back. |
 | Verse / Bridge | Exchanges between the left and right banks of four, then inner and outer spot pairs. |
-| Chorus | All eight spots on beats 1 and 3; group exchanges on beats 2 and 4. |
+| Chorus | Lively exchanges between all eight spots and groups. |
 | Break | A subdued wash across all eight spots. |
 | Other or missing phrase | Rotate between fanning, groups and all spots every four bars using received beats. |
+
+#### Adaptive effect speed
+
+Adaptive speed uses effective BPM: with `mid` or unknown mood, one step per beat
+in a chorus, every two beats in intro/outro and verse/bridge, and every four beats
+in a break. Mood `low` doubles the step duration; `high` halves it (limited to 1–8
+beats). These are design rules, not audio-level measurements. Mood matching is
+case-insensitive. New mood/phrase profiles take effect on beat 1. Real beats still
+trigger pulses while slower patterns retain their fades across multiple beats.
+If beats stop arriving, the light fades out within two beat durations.
+
+At 120 BPM, a beat lasts 500 ms: with mood `mid`, chorus steps take 500 ms,
+verse steps 1,000 ms and break steps 2,000 ms. Pattern movement, fade duration
+and pulse strength are controlled separately; calmer phrases receive longer
+fades and weaker pulses. Live and replay calculate identical frames for the
+same event time.
+
+Live XDJ-XZ observation with mood `mid` confirmed slower verse movement and a
+faster chorus; the verse → chorus profile change took effect on beat 1. Mood
+`low`/`high` and unknown values are covered by regression tests, but were not
+confirmed as changing device values during this live check.
 
 Patterns transition with smooth fades. The interface shows the active pattern
 alongside tempo and phrase.
@@ -315,6 +373,20 @@ remain untouched.
 
 The preview has **no hardware output**. Connecting physical DMX/Art-Net output to
 the application, USB output and RB-DMX1 integration remain future work.
+
+### Waveform reception diagnostics (experimental)
+
+The Java bridge requests detailed waveforms using the existing beat-link
+`WaveformFinder`. The shared development terminal prints `[waveform]` lines with
+availability, segment count, track duration and current position mapping.
+Waveform and playback position must match the same `{id, player, slot}` track
+identity. Detail data has 150 segments per track second; missing or out-of-range
+positions remain invalid. Logging is limited to three valid position examples
+per loaded track, at least two seconds apart. For three-band waveforms, only
+position mapping is checked; no single height value is reported yet.
+This is a reception diagnostic, not confirmed XDJ-XZ waveform support or
+waveform-based brightness control, and it adds no hardware output.
+Java changes take effect only after restarting `npm run dev`.
 
 ### Setup and start
 

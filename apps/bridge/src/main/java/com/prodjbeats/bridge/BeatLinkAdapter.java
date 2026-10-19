@@ -29,6 +29,10 @@ final class BeatLinkAdapter implements AutoCloseable {
         thread.setDaemon(true);
         return thread;
     });
+    private final Map<Integer, String> waveformSources = new HashMap<>();
+    private final Map<Integer, Long> waveformSampleAt = new HashMap<>();
+    private final Map<Integer, Integer> waveformSampleCount = new HashMap<>();
+    private final Set<Integer> waveformMissing = new HashSet<>();
     private boolean servicesReady;
     private Object currentMaster;
     private final Map<Integer, Long> announcedAt = new HashMap<>();
@@ -95,6 +99,7 @@ final class BeatLinkAdapter implements AutoCloseable {
                 payload.put("player", player);
                 payload.put("source", entry.getValue());
                 payload.put("positionMs", milliseconds);
+                diagnoseWaveform(player, entry.getValue(), milliseconds);
                 Object cdj = singleton("org.deepsymmetry.beatlink.VirtualCdj");
                 Object status = cdj.getClass().getMethod("getLatestStatusFor", int.class).invoke(cdj, player);
                 payload.put("playbackStatus", playbackStatus(status, entry.getValue()));
@@ -102,6 +107,52 @@ final class BeatLinkAdapter implements AutoCloseable {
             }
         } catch (ReflectiveOperationException | RuntimeException ex) {
             broadcaster.publish(CanonicalEvent.error("Unable to read track position: " + describe(ex)));
+        }
+    }
+
+    // 150 detail segments per second, as specified by beat-link WaveformDetail.
+    // Reject unknown positions and end-of-track rather than clamping to a stale peak.
+    static int waveformIndex(Long positionMs, int frames) {
+        if (positionMs == null || positionMs < 0 || frames <= 0) return -1;
+        if (positionMs >= (frames * 1000L + 149) / 150) return -1;
+        return (int) (positionMs * 150 / 1000);
+    }
+
+    private void diagnoseWaveform(int player, Map<String, Object> source, Long positionMs) {
+        String identity = source.toString();
+        if (!identity.equals(waveformSources.put(player, identity))) {
+            waveformSampleAt.remove(player);
+            waveformSampleCount.remove(player);
+            waveformMissing.remove(player);
+        }
+        if (waveformSampleCount.getOrDefault(player, 0) >= 3) return;
+        try {
+            Object finder = singleton("org.deepsymmetry.beatlink.data.WaveformFinder");
+            Object detail = finder.getClass().getMethod("getLatestDetailFor", int.class).invoke(finder, player);
+            if (detail == null || !source.equals(sourcePayload(fieldValue(detail, "dataReference")))) {
+                if (waveformMissing.add(player)) System.out.println("[waveform] player=" + player + " detail=pending (no matching track waveform yet)");
+                return;
+            }
+            int frames = ((Number) detail.getClass().getMethod("getFrameCount").invoke(detail)).intValue();
+            long duration = ((Number) detail.getClass().getMethod("getTotalTime").invoke(detail)).longValue();
+            int index = waveformIndex(positionMs, frames);
+            long now = System.currentTimeMillis();
+            if (now - waveformSampleAt.getOrDefault(player, 0L) < 2000) return;
+            String height = "unavailable";
+            if (index >= 0) {
+                // The two-argument height accessor is unavailable for three-band data.
+                if (!"THREE_BAND".equals(String.valueOf(fieldValue(detail, "style")))) {
+                    height = String.valueOf(detail.getClass().getMethod("segmentHeight", int.class, int.class).invoke(detail, index, 1));
+                }
+            }
+            System.out.println("[waveform] player=" + player + " source=" + source + " detail=available frames=" + frames
+                    + " durationMs=" + duration + " positionMs=" + positionMs + " segment=" + index
+                    + " height=" + height + " identity=matched mapping=" + (index >= 0 ? "valid" : "waiting-for-position"));
+            waveformSampleAt.put(player, now);
+            // Keep waiting if TimeFinder has not resolved the matching position yet.
+            if (index >= 0) waveformSampleCount.merge(player, 1, Integer::sum);
+        } catch (ReflectiveOperationException | RuntimeException ex) {
+            if (waveformMissing.add(player)) System.out.println("[waveform] player=" + player + " diagnostic unavailable: " + describe(ex));
         }
     }
 
@@ -217,6 +268,11 @@ final class BeatLinkAdapter implements AutoCloseable {
                 this::handleStructure
         );
         invokeIfPresent(analysisTagFinder, "start");
+
+        // Read-only analysis requests through the existing beat-link connection.
+        Object waveformFinder = singleton("org.deepsymmetry.beatlink.data.WaveformFinder");
+        waveformFinder.getClass().getMethod("setFindDetails", boolean.class).invoke(waveformFinder, true);
+        invokeIfPresent(waveformFinder, "start");
     }
 
     private void registerAnalysisTagListener(

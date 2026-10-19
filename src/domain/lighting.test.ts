@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { lightingFrame } from './lighting';
+import { lightingFrame, lightingProfile } from './lighting';
 import { ProDjLinkSession } from '../application/session';
 
 const source = { id: 10, player: 1, slot: 'USB_SLOT' };
@@ -174,13 +174,15 @@ test('verse exchanges left/right banks, then inner/outer pairs with smooth overl
   beat(1, 1);
   assert.deepEqual(lit(session), ['L1', 'L2', 'L3', 'L4']);
   beat(2, 2);
+  assert.deepEqual(lit(session), ['L1', 'L2', 'L3', 'L4']); // two beats per step
+  beat(3, 3);
   assert.deepEqual(lit(session), ['R1', 'R2', 'R3', 'R4']);
   const state = session.snapshot().lighting;
   const mid = lightingFrame(state, state.animation.at + state.animation.duration * 0.2);
   assert.ok(mid.spots.every(spot => spot.intensity > 0 && spot.intensity <= 1));
-  beat(1, 5);
+  beat(1, 9);
   assert.deepEqual(lit(session), ['L2', 'L3', 'R2', 'R3']);
-  beat(2, 6);
+  beat(3, 11);
   assert.deepEqual(lit(session), ['L1', 'L4', 'R1', 'R4']);
 });
 
@@ -208,4 +210,58 @@ test('unknown phrases rotate every four bars; duplicates and foreign beats do no
   }
   beat(1, 33);
   assert.equal(session.snapshot().lighting.pattern, 'all'); // deterministic backward seek
+});
+
+
+test('adaptive profiles use known mood categories with neutral handling for unknown moods', () => {
+  assert.equal(lightingProfile('mid', 'chorus').stepBeats, 1);
+  assert.equal(lightingProfile('low', 'chorus').stepBeats, 2);
+  assert.equal(lightingProfile('high', 'verse-1').stepBeats, 1);
+  assert.equal(lightingProfile('mid', 'verse-1').stepBeats, 2);
+  assert.equal(lightingProfile('low', 'intro').stepBeats, 4);
+  assert.equal(lightingProfile('low', 'break').stepBeats, 8);
+  assert.deepEqual(lightingProfile('unrecognised', 'break'), lightingProfile('mid', 'break'));
+  assert.deepEqual(lightingProfile('HIGH', 'verse-1'), lightingProfile('high', 'verse-1'));
+});
+
+test('mood and phrase profiles latch on beat one; duplicates, status and other players cannot switch them', () => {
+  const { session, emit, beat } = setup();
+  structure(emit, 'chorus');
+  beat(1, 1);
+  assert.equal(session.snapshot().lighting.profile.stepBeats, 1);
+  emit('structure', { player: 1, source, bank: 'default', mood: 'low',
+    phrases: [{ startBeat: 1, beats: 64, kind: 'break' }] });
+  beat(2, 2);
+  beat(3, 3);
+  beat(4, 4);
+  assert.equal(session.snapshot().lighting.profile.stepBeats, 1);
+  beat(1, 5, 2);
+  assert.equal(session.snapshot().lighting.profile.stepBeats, 1);
+  beat(1, 5);
+  const state = session.snapshot().lighting;
+  assert.equal(state.profile.stepBeats, 8);
+  assert.equal(state.pattern, 'wash');
+  beat(1, 5);
+  assert.deepEqual(session.snapshot().lighting, state);
+  assert.equal(session.disconnect().lighting.profile.stepBeats, 1);
+});
+
+test('slow steps keep their fade timeline across beats while each real beat retriggers only the pulse', () => {
+  const { session, emit, beat } = setup();
+  structure(emit, 'verse-1');
+  beat(1, 1);
+  const first = session.snapshot().lighting;
+  beat(2, 2);
+  const second = session.snapshot().lighting;
+  assert.equal(second.animation.transitionAt, first.animation.transitionAt);
+  assert.ok(second.animation.at > first.animation.at);
+  assert.equal(second.animation.transitionDuration, first.animation.duration * 2 * 0.7);
+  beat(3, 3);
+  const third = session.snapshot().lighting;
+  assert.ok(third.animation.transitionAt > second.animation.transitionAt);
+  for (const delta of [0, 100, 500, 1000, 5000]) {
+    const frame = lightingFrame(third, third.animation.at + delta);
+    assert.ok(frame.spots.every(spot => spot.intensity >= 0 && spot.intensity <= 1));
+  }
+  assert.ok(lightingFrame(third, third.animation.at + 5000).spots.every(spot => spot.intensity === 0));
 });

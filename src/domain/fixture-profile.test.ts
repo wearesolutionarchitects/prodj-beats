@@ -55,8 +55,8 @@ test('invalid color or dimmer values cannot wrap around into valid DMX output', 
 test('shared lighting interpolation preserves fractional RGBW values through fixture encoding', () => {
   const spot = { id: 'L1', side: 'left' as const, color: [1, 0.5, 0.25, 1] as const, intensity: 1 };
   const state: LightingSnapshot = {
-    pattern: 'wash', status: 'synced', player: 1, tempo: 120, phrase: null, beatWithinBar: 1,
-    spots: [spot], animation: { from: [{ ...spot, color: [0, 0, 0, 0] }], at: 0, duration: 500, frozenAt: null }
+    profile: { stepBeats: 1, fadeFraction: 0.45, pulseStrength: 1 }, pattern: 'wash', status: 'synced', player: 1, tempo: 120, phrase: null, beatWithinBar: 1,
+    spots: [spot], animation: { from: [{ ...spot, color: [0, 0, 0, 0] }], at: 0, duration: 500, frozenAt: null, transitionAt: 0, transitionDuration: 225 }
   };
   const frame = lightingFrame(state, 112.5).spots[0]!;
   assert.deepEqual(frame.color, [0.5, 0.25, 0.125, 0.5]);

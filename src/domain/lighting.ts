@@ -7,7 +7,21 @@ export interface ParSpot extends LightOutput {
   side: 'left' | 'right';
 }
 export type LightingPattern = 'fan' | 'groups' | 'all' | 'wash';
+export interface LightingProfile { stepBeats: number; fadeFraction: number; pulseStrength: number }
+export function lightingProfile(mood: string | null, phrase: string | null): LightingProfile {
+  const calm = phrase?.startsWith('intro') || phrase?.startsWith('outro');
+  const breakPhrase = phrase?.startsWith('break');
+  const verse = phrase?.startsWith('verse') || phrase?.startsWith('bridge');
+  const base = breakPhrase ? 4 : calm || verse ? 2 : 1;
+  // Mood is a structural category, not an audio energy measurement.
+  const category = mood?.toLowerCase();
+  const multiplier = category === 'low' ? 2 : category === 'high' ? 0.5 : 1;
+  return { stepBeats: Math.max(1, Math.min(8, base * multiplier)),
+    fadeFraction: breakPhrase || calm ? 0.85 : verse ? 0.7 : 0.45,
+    pulseStrength: breakPhrase ? 0.2 : calm ? 0.35 : verse ? 0.55 : 1 };
+}
 export interface LightingSnapshot {
+  profile: LightingProfile;
   pattern: LightingPattern;
   status: 'waiting' | 'synced' | 'paused';
   player: number | null;
@@ -15,7 +29,7 @@ export interface LightingSnapshot {
   phrase: string | null;
   beatWithinBar: number | null;
   spots: ParSpot[];
-  animation: { from: ParSpot[]; at: number; duration: number; frozenAt: number | null };
+  animation: { from: ParSpot[]; at: number; duration: number; frozenAt: number | null; transitionAt: number; transitionDuration: number };
 }
 
 const DARK: RGBW = [0, 0, 0, 0];
@@ -64,6 +78,12 @@ export class LightingPreview {
   private duration = 500;
   private frozenAt: number | null = null;
   private step = 0;
+  private profile = lightingProfile(null, null);
+  private activePhrase: string | null = null;
+  private transitionAt = -1;
+  private transitionDuration = 225;
+  private effectStep = -1;
+  private profileOrigin = 0;
   private pattern: LightingPattern = 'fan';
   private state: LightingSnapshot = this.render(null, null);
 
@@ -81,6 +101,10 @@ export class LightingPreview {
       this.from = [];
       this.step = 0;
       this.pattern = 'fan';
+      this.profile = lightingProfile(null, null);
+      this.activePhrase = null;
+      this.effectStep = -1;
+      this.profileOrigin = 0;
       this.frozenAt = null;
     }
     const paused = isPaused(deck);
@@ -95,11 +119,25 @@ export class LightingPreview {
         this.beatKey = null;
         this.beatAt = event.ms;
       } else if (key !== this.beatKey) {
-        this.from = previousFrame.spots;
         this.step = event.payload.trackBeat === null ? (this.beat === null ? beat - 1 : this.step + 1) : event.payload.trackBeat - 1;
-        this.pattern = selectPattern(deck?.beat?.phrase?.kind ?? null, this.step, beat);
+        const oldProfile = this.profile;
+        const oldPhrase = this.activePhrase;
+        if (beat === 1) {
+          this.activePhrase = deck?.beat?.phrase?.kind ?? null;
+          this.profile = lightingProfile(deck?.structure?.mood ?? null, this.activePhrase);
+        }
         const tempo = event.payload.tempo ?? master?.payload.tempo;
         this.duration = tempo != null && tempo > 0 ? 60000 / tempo : 500;
+        const profileChanged = oldPhrase !== this.activePhrase || JSON.stringify(oldProfile) !== JSON.stringify(this.profile);
+        if (profileChanged) this.profileOrigin = this.step;
+        const effectStep = Math.max(0, Math.floor((this.step - this.profileOrigin) / this.profile.stepBeats));
+        if (effectStep !== this.effectStep || profileChanged) {
+          this.from = this.effectStep < 0 ? previousFrame.spots : this.state.spots;
+          this.effectStep = effectStep;
+          this.transitionAt = event.ms;
+          this.transitionDuration = this.duration * this.profile.stepBeats * this.profile.fadeFraction;
+          this.pattern = selectPattern(this.activePhrase, this.step, effectStep % 4 + 1);
+        }
         this.frozenAt = null;
         this.beat = beat;
         this.beatKey = key;
@@ -115,17 +153,18 @@ export class LightingPreview {
     const player = deck?.device?.active === false ? null : master?.payload.player ?? null;
     const paused = isPaused(deck);
     const phrase = deck?.beat?.phrase?.kind ?? null;
-    const color = phraseColor(phrase);
+    const color = phraseColor(this.activePhrase);
     return {
+      profile: this.profile,
       pattern: this.pattern,
       status: player === null ? 'waiting' : paused ? 'paused' : this.beat === null ? 'waiting' : 'synced',
       player,
       tempo: player === null ? null : master?.payload.tempo ?? null,
       phrase,
       beatWithinBar: this.beat,
-      animation: { from: this.from, at: this.beatAt, duration: this.duration, frozenAt: this.frozenAt },
+      animation: { from: this.from, at: this.beatAt, duration: this.duration, frozenAt: this.frozenAt, transitionAt: this.transitionAt, transitionDuration: this.transitionDuration },
       spots: (['left', 'right'] as const).flatMap(side => Array.from({ length: 4 }, (_, index) => {
-        const intensity = player !== null && this.beat !== null ? spotIntensity(this.pattern, side, index, this.step) : 0;
+        const intensity = player !== null && this.beat !== null ? spotIntensity(this.pattern, side, index, Math.max(0, this.effectStep)) : 0;
         return { id: `${side === 'left' ? 'L' : 'R'}${index + 1}`, side, color: intensity > 0 ? color : DARK, intensity };
       }))
     };
@@ -138,9 +177,9 @@ export function lightingFrame(state: LightingSnapshot, timeMs: number): Lighting
   if (state.status === 'waiting') return { ...state, spots: state.spots.map(spot => ({ ...spot, color: DARK, intensity: 0 })) };
   const { from, at, duration, frozenAt } = state.animation;
   const phase = Math.max(0, ((frozenAt ?? timeMs) - at) / duration);
-  const blend = Math.min(1, phase / 0.45);
+  const blend = Math.max(0, Math.min(1, ((frozenAt ?? timeMs) - state.animation.transitionAt) / state.animation.transitionDuration));
   const smooth = blend * blend * (3 - 2 * blend);
-  const pulse = Math.max(0, 1 - phase);
+  const pulse = (1 - state.profile.pulseStrength * Math.min(1, phase)) * Math.max(0, Math.min(1, 2 - phase));
   const accent = state.beatWithinBar === 1 ? 1 : 0.8;
   return { ...state, spots: state.spots.map((target, index) => {
     const previous = from[index];
