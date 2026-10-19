@@ -35,7 +35,7 @@ export default function LiveDeckMonitor({ source }: { source?: EventSource }) {
           <div class="players-grid">
             {decks.map((deck) => <DeckCardView key={deck.player} deck={deck} />)}
           </div>
-          <LightingPreview lighting={snapshot.lighting} eventMs={snapshot.lastEvent?.ms ?? 0} timeScale={selected.timeScale ?? 1} running={status === 'live' || status === 'replay'} />
+          <LightingPreview lighting={snapshot.lighting} eventMs={snapshot.lastEvent?.ms ?? 0} timeScale={selected.timeScale ?? 1} running={status === 'live' || status === 'replay'} replay={status === 'replay' || status === 'complete'} />
         </div>
         <aside class="mixer-column" aria-label="Mixer">
           <OnAirCard channels={snapshot.onAir?.payload.channels ?? null} snapshot={snapshot} status={status} />

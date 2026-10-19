@@ -48,6 +48,11 @@ export function decodeApeLabsRgbw16(data: Uint8Array): Rgbw16 {
 /** Same quantization and dimming as output, followed by a linear-to-sRGB display transfer. */
 export function apeLabsPreviewRgb(light: LightOutput): readonly number[] {
   const values = decodeApeLabsRgbw16(encodeApeLabsRgbw16(light));
+  return apeLabsSentPreviewRgb(values);
+}
+
+/** Render an already-sent frame without applying intensity or quantization again. */
+export function apeLabsSentPreviewRgb(values: Rgbw16): readonly number[] {
   return values.slice(0, 3).map((channel, index) => {
     const linear = Math.min(1, (channel + values[3] * APE_LABS_RGBW_16.warmWhitePreview[index]!) / 65535);
     const srgb = linear <= 0.0031308 ? 12.92 * linear : 1.055 * linear ** (1 / 2.4) - 0.055;

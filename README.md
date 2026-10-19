@@ -147,9 +147,16 @@ Unter jedem Spot stehen die zuletzt erfolgreich per UDP gesendeten **TX16-Werte
 R/G/B/W (0–65535)**. Sie werden aus den gesendeten DMX-Bytes zurückgelesen, nicht
 aus der aktuellen Browseranimation geschätzt. Darunter stehen je Farbe die
 zugehörigen **Grob/Fein-Bytes (je 0–255)**, zum Beispiel `16905` und `66/9`.
-Diese zusätzliche Anzeige verändert keine Ausgabewerte. Der Stand wird mit
-Zeitangabe alle zwei Sekunden abgefragt und kann deshalb hinter der laufenden
-Vorschau liegen.
+Diese zusätzliche Anzeige verändert keine Ausgabewerte. Der bestehende Dev-Server
+überträgt vollständige Sender-Snapshots über SSE unter
+`/api/lighting-output/events` mit bis zu 30 Hz. Bei aktiver Live-Ausgabe zeigen
+Spotfarben und Kanalwerte denselben erfolgreich gesendeten Frame. Langsame
+Browser behalten nur den neuesten ausstehenden Stand; alte Frames werden nicht
+aufgestaut. Nach Verbindungsverlust wird der Senderstatus als nicht verfügbar
+angezeigt; der Browser verbindet sich automatisch neu. Ohne Hardware-Frame und
+im Replay bleibt die gemeinsame Software-Vorschau aktiv. Browser-Replay steuert
+den Live-Sender nicht, auch nicht bei einfacher Wiedergabegeschwindigkeit.
+Der JSON-Snapshot unter `/api/lighting-output` bleibt für Diagnosen erhalten.
 Vor dem ersten erfolgreichen Hardware-Senden stehen Striche; bei Fehlern bleiben
 die letzten Werte mit Fehlerstatus sichtbar. Auch im Browser-Replay beschreiben
 diese Werte ausschließlich den separaten Live-Sender. UDP-Erfolg ist weiterhin
@@ -456,10 +463,17 @@ does not change hardware values.
 
 Each spot shows the last successfully UDP-sent **TX16 R/G/B/W values
 (0–65535)**, decoded from transmitted DMX bytes rather than estimated from the
-browser animation. The timestamped snapshot is polled every two seconds and may
-lag the preview. Below each color, **coarse/fine bytes (0–255 each)** provide a
+browser animation. Below each color, **coarse/fine bytes (0–255 each)** provide a
 direct comparison with Protokol, for example `16905` and `66/9`. This additional
-display does not change output values.
+display does not change output values. The existing development server streams
+complete sender snapshots via SSE at `/api/lighting-output/events`, up to 30 Hz.
+During live hardware output, spot colors and channel values use the same
+successfully sent frame. Slow clients retain only the latest pending snapshot;
+old frames do not accumulate. A disconnected stream clears sender status and
+reconnects automatically. Without hardware frames, and during replay, the shared
+software preview remains active. Browser replay never controls the live sender,
+including replay at normal speed. The JSON snapshot at `/api/lighting-output`
+remains available for diagnostics.
 Dashes indicate no successful hardware send yet; errors retain
 the last successful values alongside error status. Browser replay still shows
 the separate live sender's values. UDP success does not confirm physical fixture

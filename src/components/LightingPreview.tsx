@@ -1,27 +1,13 @@
 import { useEffect, useState } from 'preact/hooks';
 import { lightingFrame, type LightingSnapshot } from '../domain/lighting';
 import type { LightingOutputStatus } from '../domain/lighting-output-status';
-import { APE_LABS_RGBW_16, apeLabsPreviewRgb, splitDmx16 } from '../domain/fixture-profile';
+import { APE_LABS_RGBW_16, apeLabsPreviewRgb, apeLabsSentPreviewRgb, splitDmx16 } from '../domain/fixture-profile';
+import { observeLightingOutput } from '../infrastructure/lighting-status-source';
 
-export default function LightingPreview({ lighting, eventMs, timeScale, running }: { lighting?: LightingSnapshot; eventMs: number; timeScale: number; running: boolean }) {
+export default function LightingPreview({ lighting, eventMs, timeScale, running, replay = false }: { lighting?: LightingSnapshot; eventMs: number; timeScale: number; running: boolean; replay?: boolean }) {
   const [time, setTime] = useState(eventMs);
   const [output, setOutput] = useState<LightingOutputStatus | null>(null);
-  useEffect(() => {
-    let stopped = false;
-    let timer: ReturnType<typeof setTimeout>;
-    const controller = new AbortController();
-    const poll = async () => {
-      try {
-        const response = await fetch('/api/lighting-output', { signal: controller.signal, cache: 'no-store' });
-        if (!response.ok) throw new Error('Output status unavailable');
-        const status: LightingOutputStatus = await response.json();
-        if (!stopped) setOutput(status);
-      } catch { if (!stopped) setOutput(null); }
-      finally { if (!stopped) timer = setTimeout(poll, 2000); }
-    };
-    void poll();
-    return () => { stopped = true; clearTimeout(timer); controller.abort(); };
-  }, []);
+  useEffect(() => observeLightingOutput(setOutput), []);
   useEffect(() => {
     setTime(eventMs);
     if (!running || timeScale === 0) return;
@@ -44,15 +30,15 @@ export default function LightingPreview({ lighting, eventMs, timeScale, running 
           <h2 id="lighting-heading">Lighting</h2>
           <p class="mixer-note">Software Analyse | Hardware-Output: {outputDevice || 'Kein Gerät konfiguriert'}{outputAddress ? ` · ${outputAddress}` : ''}</p>
           {outputDevice && <p class="mixer-note">Port 1: Output · Universe {output?.universe ?? 1} | Port 2: Input</p>}
-          <p class="mixer-note" role="status">{outputLabel}{output?.sentFrames ? ` · ${output.sentFrames} Frames` : ''}</p>
+          <p class="mixer-note"><span role="status">{outputLabel}</span>{output?.sentFrames ? ` · ${output.sentFrames} Frames` : ''}</p>
           {output?.error && <p class="mixer-note">{output.error}</p>}
-          {timeScale !== 1 && <p class="mixer-note">Replay-Vorschau · Hardware-Sender verwendet ausschließlich Live-Daten</p>}
+          {replay && <p class="mixer-note">Replay-Vorschau · Hardware-Sender verwendet ausschließlich Live-Daten</p>}
         </div>
         <span class={`status ${lighting?.status === 'synced' ? 'status--active' : ''}`}>{label}</span>
       </header>
       <p class="lighting-source">{lighting?.player != null ? `Player ${lighting.player}` : 'No tempo master'} · {lighting?.tempo == null ? 'BPM unknown' : `${lighting.tempo.toFixed(2)} BPM`} · {lighting?.phrase ?? 'Default palette'} · {{ fan: 'Fanning', groups: 'Group exchange', all: 'All spots', wash: 'Soft wash' }[lighting?.pattern ?? 'fan']}</p>
       <p class="mixer-note">Ape Labs RGBW · 8 Kanäle / 16 Bit · Bildschirmfarben angenähert.
-        {' '}TX16: zuletzt per UDP an Showtec gesendet (0–65535, Live-Ausgabe, Abfrage alle 2 s).
+        {' '}TX16: zuletzt per UDP an Showtec gesendet (0–65535, Live-Ausgabe, SSE bis 30 Hz).
         {' '}Darunter Grob/Fein (je 0–255).
         {output?.lastFrame ? ` Stand ${new Date(output.lastSentMs!).toLocaleTimeString()}.`
           : output && output.lastFrame === undefined ? ' Kanaldiagnose benötigt Sender-Neustart.' : ' Noch keine Kanalwerte verfügbar.'}
@@ -63,9 +49,12 @@ export default function LightingPreview({ lighting, eventMs, timeScale, running 
             <h3>{side === 'left' ? 'Left' : 'Right'}</h3>
             <div class="lighting-spots">{rendered?.spots.filter(spot => spot.side === side).map(spot => {
               const sent = output?.lastFrame?.find(fixture => fixture.id === spot.id);
+              const showSent = !replay && sent != null;
+              const color = showSent ? apeLabsSentPreviewRgb(sent.values) : apeLabsPreviewRgb(spot);
+              const lit = showSent ? sent.values.some(value => value > 0) : spot.intensity > 0;
               return (
-              <div class="lighting-spot" key={spot.id} data-spot={spot.id} data-lit={spot.intensity > 0 ? 'true' : 'false'}>
-                <span class="lighting-lens" style={{ '--spot-color': `rgb(${apeLabsPreviewRgb(spot).join(',')})` }} aria-hidden="true" />
+              <div class="lighting-spot" key={spot.id} data-spot={spot.id} data-lit={lit ? 'true' : 'false'}>
+                <span class="lighting-lens" style={{ '--spot-color': `rgb(${color.join(',')})` }} aria-hidden="true" />
                 <span>{spot.id}</span>
                 <dl class="lighting-values" aria-label={`${spot.id}: zuletzt gesendete 16-Bit-Werte`}>
                   {(['R', 'G', 'B', 'W'] as const).map((channel, index) => {
@@ -80,7 +69,7 @@ export default function LightingPreview({ lighting, eventMs, timeScale, running 
                     </div>;
                   })}
                 </dl>
-                <span class="sr-only">{spot.intensity > 0 ? `RGBW ${spot.color.map(channel => Math.round(channel * 100)).join(', ')}%, ${Math.round(spot.intensity * 100)}%` : 'Off'}</span>
+                <span class="sr-only">{showSent ? (lit ? 'Gesendeter Frame aktiv' : 'Gesendeter Frame aus') : spot.intensity > 0 ? `RGBW ${spot.color.map(channel => Math.round(channel * 100)).join(', ')}%, ${Math.round(spot.intensity * 100)}%` : 'Off'}</span>
               </div>
             ); })}</div>
           </div>
