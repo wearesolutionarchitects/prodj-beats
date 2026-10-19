@@ -1,4 +1,5 @@
-import type { BeatEvent, DeviceEvent, StructureEvent, TrackEvent, ArtEvent, PositionEvent, TrackSource } from './events';
+import { prepareWaveform, type WaveformEnvelope } from './waveform';
+import type { WaveformDataEvent, BeatEvent, DeviceEvent, StructureEvent, TrackEvent, ArtEvent, PositionEvent, TrackSource } from './events';
 
 export type PlayerId = number;
 
@@ -58,6 +59,8 @@ export interface DeckState {
   track: Track | null;
   structure: Structure | null;
   artworkDataUri: string | null;
+  waveform?: WaveformEnvelope | null;
+  positionUpdatedAt?: number;
   positionMs: number | null;
   playbackStatus: NonNullable<PositionEvent['payload']['playbackStatus']>;
 }
@@ -74,6 +77,8 @@ export class Deck {
       beat: null,
       track: null,
       structure: null,
+      waveform: null,
+      positionUpdatedAt: 0,
       positionMs: null,
       playbackStatus: 'unknown',
       artworkDataUri: null
@@ -150,7 +155,13 @@ export class Deck {
   updatePosition(event: PositionEvent): void {
     if (!this.accept(event)) return;
     this.state.positionMs = event.payload.positionMs;
+    this.state.positionUpdatedAt = event.ms;
     this.state.playbackStatus = event.payload.playbackStatus ?? 'unknown';
+  }
+
+  updateWaveform(event: WaveformDataEvent): void {
+    if (!this.accept(event)) return;
+    this.state.waveform = event.payload.data ? prepareWaveform(event.payload.data.heights, event.payload.data.sampleMs) : null;
   }
 
   updateArtwork(event: ArtEvent): void {
@@ -165,17 +176,19 @@ export class Deck {
     if (this.state.device) this.state.device.active = false;
   }
 
-  private accept(event: DeviceEvent | BeatEvent | TrackEvent | StructureEvent | ArtEvent | PositionEvent): boolean {
+  private accept(event: DeviceEvent | BeatEvent | TrackEvent | StructureEvent | ArtEvent | PositionEvent | WaveformDataEvent): boolean {
     if (event.type === 'device' && event.ms < (this.state.device?.updatedAt ?? 0)) return false;
     if (event.ms < this.trackSince || event.ms < (this.timestamps.get(event.type) ?? 0)) return false;
     // Mismatching assets must not advance the current track's timestamp watermark.
-    if ((event.type === 'art' || event.type === 'structure' || event.type === 'position') &&
+    if ((event.type === 'art' || event.type === 'structure' || event.type === 'position' || event.type === 'waveformData') &&
         !sameSource(event.payload.source, this.state.track?.source)) return false;
     this.timestamps.set(event.type, event.ms);
     return true;
   }
 
   private clearTrack(): void {
+    this.state.waveform = null;
+    this.state.positionUpdatedAt = 0;
     this.state.positionMs = null;
     this.state.playbackStatus = 'unknown';
     this.state.track = null;

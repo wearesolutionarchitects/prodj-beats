@@ -1,3 +1,4 @@
+import { waveformBrightness, type WaveformEnvelope } from './waveform';
 import type { DeckState } from './deck';
 import type { MasterEvent, ProDjLinkEvent } from './events';
 
@@ -21,6 +22,7 @@ export function lightingProfile(mood: string | null, phrase: string | null): Lig
     pulseStrength: breakPhrase ? 0.2 : calm ? 0.35 : verse ? 0.55 : 1 };
 }
 export interface LightingSnapshot {
+  dynamics?: { waveform: WaveformEnvelope; positionMs: number; at: number; rate: number; playing: boolean } | null;
   profile: LightingProfile;
   pattern: LightingPattern;
   status: 'waiting' | 'synced' | 'paused';
@@ -155,6 +157,11 @@ export class LightingPreview {
     const phrase = deck?.beat?.phrase?.kind ?? null;
     const color = phraseColor(this.activePhrase);
     return {
+      dynamics: deck?.waveform && deck.positionMs !== null ? {
+        waveform: deck.waveform, positionMs: deck.positionMs, at: deck.positionUpdatedAt ?? 0,
+        rate: master?.payload.tempo && master.payload.bpm ? master.payload.tempo / master.payload.bpm : 1,
+        playing: deck.playbackStatus === 'playing'
+      } : null,
       profile: this.profile,
       pattern: this.pattern,
       status: player === null ? 'waiting' : paused ? 'paused' : this.beat === null ? 'waiting' : 'synced',
@@ -180,10 +187,13 @@ export function lightingFrame(state: LightingSnapshot, timeMs: number): Lighting
   const blend = Math.max(0, Math.min(1, ((frozenAt ?? timeMs) - state.animation.transitionAt) / state.animation.transitionDuration));
   const smooth = blend * blend * (3 - 2 * blend);
   const pulse = (1 - state.profile.pulseStrength * Math.min(1, phase)) * Math.max(0, Math.min(1, 2 - phase));
+  const dynamics = state.dynamics;
+  const position = dynamics ? dynamics.positionMs + (dynamics.playing ? Math.max(0, (frozenAt ?? timeMs) - dynamics.at) * dynamics.rate : 0) : null;
+  const brightness = waveformBrightness(dynamics?.waveform, position);
   const accent = state.beatWithinBar === 1 ? 1 : 0.8;
   return { ...state, spots: state.spots.map((target, index) => {
     const previous = from[index];
-    const intensity = ((previous?.intensity ?? 0) * (1 - smooth) + target.intensity * smooth) * pulse * accent;
+    const intensity = ((previous?.intensity ?? 0) * (1 - smooth) + target.intensity * smooth) * pulse * accent * brightness;
     const color = target.color.map((channel, c) => (previous?.color[c] ?? 0) * (1 - smooth) + channel * smooth) as unknown as RGBW;
     return { ...target, color, intensity };
   }) };

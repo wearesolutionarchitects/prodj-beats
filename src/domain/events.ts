@@ -166,6 +166,14 @@ export const errorEventSchema = payloadEnvelopeSchema.extend({
   })
 });
 
+export const waveformDataEventSchema = payloadEnvelopeSchema.extend({
+  type: z.literal('waveformData'),
+  payload: z.object({
+    player: z.number().int().positive(), source: sourceSchema,
+    data: z.object({ sampleMs: z.literal(50), heights: z.array(z.number().int().min(0).max(31)).min(1).max(144000) }).nullable()
+  })
+});
+
 export const ignoredEventSchema = payloadEnvelopeSchema.extend({
   type: z.enum(['waveform', 'grid', 'phrase', 'cue'])
 });
@@ -183,9 +191,11 @@ export const prodjLinkEventSchema = z.discriminatedUnion('type', [
   positionEventSchema,
   sysEventSchema,
   errorEventSchema,
+  waveformDataEventSchema,
   ignoredEventSchema
 ]);
 
+export type WaveformDataEvent = z.infer<typeof waveformDataEventSchema>;
 export type TrackSource = z.infer<typeof sourceSchema>;
 
 export type ProDjLinkEvent = z.infer<typeof prodjLinkEventSchema>;

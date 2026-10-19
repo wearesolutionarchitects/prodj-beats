@@ -189,8 +189,22 @@ Positionen und Positionen außerhalb der Waveform bleiben ungültig.
 Pro geladenem Track werden höchstens drei gültige Positionsbeispiele im Abstand
 von mindestens zwei Sekunden protokolliert. Bei Drei-Band-Waveforms wird derzeit
 nur die Positionszuordnung geprüft, kein einzelner Höhenwert ausgegeben.
-Dies ist eine Empfangsdiagnose, noch keine bestätigte XDJ-XZ-Waveform-Unterstützung
-und keine Waveform-Helligkeitssteuerung oder zusätzliche Hardware-Ausgabe.
+Am XDJ-XZ wurde der Empfang und die passende Cache-Positionszuordnung bestätigt.
+Zusätzlich überträgt die Bridge einmal pro Track ein `waveformData`-Ereignis v2
+mit Track-Identität, `sampleMs: 50` und Höhenwerten von 0 bis 31. Die vollständige
+Analyse wird aus dem Cache gelesen, kein laufender Audio-Stream ausgewertet.
+
+Die gemeinsame Live-/Replay-Verarbeitung erzeugt daraus eine positionsabhängige
+Helligkeit: 80 ms Aufhell- und 350 ms Abklingzeit, feste Normalisierung auf die
+Waveform-Skala und maximal 15 Prozentpunkte zusätzlicher Peak-Akzent. Der Faktor
+liegt zwischen 20 und 100 Prozent und wird mit der bestehenden Spot-Intensität
+multipliziert. Fehlende, fremde oder nicht unterstützte Waveforms sowie unbekannte
+Positionen lassen das bisherige Lighting unverändert. Trackwechsel, Entladen und
+Verbindungsverlust entfernen die zugehörigen Daten. Suchen im Track liest dieselbe
+vorberechnete Hüllkurve; Tempoänderungen werden über die Positionsfortschreibung
+berücksichtigt. Drei-Band-Waveforms sind für diese Helligkeitssteuerung noch nicht
+unterstützt. Diese Werte beschreiben Track-Dynamik, keine Mixer-Ausgangspegel.
+Die Ergänzung startet oder aktiviert keine Hardware-Ausgabe.
 Java-Änderungen werden erst nach einem Neustart von `npm run dev` wirksam.
 
 ### Einrichtung und Start
@@ -388,8 +402,21 @@ identity. Detail data has 150 segments per track second; missing or out-of-range
 positions remain invalid. Logging is limited to three valid position examples
 per loaded track, at least two seconds apart. For three-band waveforms, only
 position mapping is checked; no single height value is reported yet.
-This is a reception diagnostic, not confirmed XDJ-XZ waveform support or
-waveform-based brightness control, and it adds no hardware output.
+Waveform reception and matching cached-position mapping have been confirmed on
+an XDJ-XZ. The bridge additionally sends one `waveformData` v2 event per loaded
+track, containing track identity, `sampleMs: 50` and heights from 0 to 31. This
+uses cached track analysis, not a live audio stream.
+
+Shared live/replay processing derives position-dependent brightness with an
+80 ms attack, 350 ms release, fixed waveform-scale normalization and a peak
+accent capped at 15 percentage points. The factor ranges from 20 to 100 percent
+and multiplies the existing spot intensity. Missing, foreign or unsupported
+waveforms and unknown positions preserve the previous lighting behavior. Track
+changes, unloads and disconnects clear the corresponding data. Seeking samples
+the same precomputed envelope; tempo changes affect position extrapolation.
+Three-band waveforms are not yet supported for brightness modulation. These
+values describe track dynamics, not mixer output levels. This addition does
+not start or enable hardware output.
 Java changes take effect only after restarting `npm run dev`.
 
 ### Setup and start

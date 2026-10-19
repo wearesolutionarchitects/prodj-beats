@@ -33,6 +33,7 @@ final class BeatLinkAdapter implements AutoCloseable {
     private final Map<Integer, Long> waveformSampleAt = new HashMap<>();
     private final Map<Integer, Integer> waveformSampleCount = new HashMap<>();
     private final Set<Integer> waveformMissing = new HashSet<>();
+    private final Map<Integer, Map<String, Object>> waveformPublished = new HashMap<>();
     private boolean servicesReady;
     private Object currentMaster;
     private final Map<Integer, Long> announcedAt = new HashMap<>();
@@ -99,6 +100,7 @@ final class BeatLinkAdapter implements AutoCloseable {
                 payload.put("player", player);
                 payload.put("source", entry.getValue());
                 payload.put("positionMs", milliseconds);
+                publishWaveform(player, entry.getValue());
                 diagnoseWaveform(player, entry.getValue(), milliseconds);
                 Object cdj = singleton("org.deepsymmetry.beatlink.VirtualCdj");
                 Object status = cdj.getClass().getMethod("getLatestStatusFor", int.class).invoke(cdj, player);
@@ -116,6 +118,41 @@ final class BeatLinkAdapter implements AutoCloseable {
         if (positionMs == null || positionMs < 0 || frames <= 0) return -1;
         if (positionMs >= (frames * 1000L + 149) / 150) return -1;
         return (int) (positionMs * 150 / 1000);
+    }
+
+    // Export track analysis once per load; subsequent positions only read the cache.
+    private void publishWaveform(int player, Map<String, Object> source) {
+        if (source.equals(waveformPublished.get(player))) return;
+        try {
+            Object finder = singleton("org.deepsymmetry.beatlink.data.WaveformFinder");
+            Object detail = finder.getClass().getMethod("getLatestDetailFor", int.class).invoke(finder, player);
+            if (detail == null || !source.equals(sourcePayload(fieldValue(detail, "dataReference")))) return;
+            // Unsupported formats remain unknown instead of inventing amplitudes.
+            if ("THREE_BAND".equals(String.valueOf(fieldValue(detail, "style")))) return;
+            List<Integer> heights = waveformHeights(detail);
+            if (heights.isEmpty()) return;
+            broadcaster.publish(new CanonicalEvent("waveformData", 2, System.currentTimeMillis(),
+                    Map.of("player", player, "source", source, "data", Map.of("sampleMs", 50, "heights", heights))));
+            waveformPublished.put(player, Map.copyOf(source));
+        } catch (ReflectiveOperationException | RuntimeException ex) {
+            if (waveformMissing.add(player)) broadcaster.logWaveformDiagnostic("[waveform] export unavailable: " + describe(ex));
+        }
+    }
+
+    static List<Integer> waveformHeights(Object detail) throws ReflectiveOperationException {
+        int frames = ((Number) detail.getClass().getMethod("getFrameCount").invoke(detail)).intValue();
+        int count = (int) ((frames * 20L + 149) / 150);
+        if (count <= 0 || count > 144000) return List.of();
+        Method height = detail.getClass().getMethod("segmentHeight", int.class, int.class);
+        List<Integer> heights = new ArrayList<>(count);
+        for (int bin = 0; bin < count; bin++) {
+            int start = (bin * 150 + 19) / 20;
+            int end = Math.min(frames, ((bin + 1) * 150 + 19) / 20);
+            int peak = 0;
+            for (int index = start; index < end; index++) peak = Math.max(peak, ((Number) height.invoke(detail, index, 1)).intValue());
+            heights.add(Math.max(0, Math.min(31, peak)));
+        }
+        return heights;
     }
 
     private void diagnoseWaveform(int player, Map<String, Object> source, Long positionMs) {
@@ -344,6 +381,7 @@ final class BeatLinkAdapter implements AutoCloseable {
 
         if (method.getName().toLowerCase().contains("lost")) {
             sourcesByPlayer.remove(player);
+            waveformPublished.remove(player);
             announcedAt.remove(player);
             statusReceivedAt.remove(player);
             missingStatusReported.remove(player);
@@ -533,12 +571,14 @@ final class BeatLinkAdapter implements AutoCloseable {
         Map<String, Object> source = sourcePayload(fieldValue(metadata, "trackReference"));
         if (source == null) {
             sourcesByPlayer.remove(player);
+            waveformPublished.remove(player);
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("player", player);
             payload.put("source", null);
             broadcaster.publish(new CanonicalEvent("track", 2, System.currentTimeMillis(), payload));
             return;
         }
+        if (!source.equals(sourcesByPlayer.get(player))) waveformPublished.remove(player);
         sourcesByPlayer.put(player, source);
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("album", searchableLabel(firstValue(metadata, "getAlbum")));

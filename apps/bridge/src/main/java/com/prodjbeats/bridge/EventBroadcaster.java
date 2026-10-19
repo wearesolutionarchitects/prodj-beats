@@ -34,7 +34,7 @@ final class EventBroadcaster implements AutoCloseable {
         try {
             long now = System.currentTimeMillis();
             for (Map<String, CanonicalEvent> deck : latest.values()) {
-                for (String type : List.of("device", "track", "structure", "art", "beat", "position", "mixer")) {
+                for (String type : List.of("device", "track", "structure", "waveformData", "art", "beat", "position", "mixer")) {
                     CanonicalEvent event = deck.get(type);
                     if (event != null) sink.send(new CanonicalEvent(type, 2, now, event.payload()).toJson());
                 }
@@ -53,6 +53,11 @@ final class EventBroadcaster implements AutoCloseable {
     }
 
     synchronized void publish(CanonicalEvent event) {
+        if (event.type().equals("waveformData")) {
+            Map<String, CanonicalEvent> deck = latest.get(event.payload().get("player"));
+            CanonicalEvent track = deck == null ? null : deck.get("track");
+            if (track == null || !java.util.Objects.equals(track.payload().get("source"), event.payload().get("source"))) return;
+        }
         if (event.type().equals("diagnostics")) diagnostics = event;
         if (event.type().equals("master")) master = event;
         if (event.type().equals("device") && Boolean.FALSE.equals(event.payload().get("active")) &&
@@ -66,7 +71,7 @@ final class EventBroadcaster implements AutoCloseable {
             if ((event.type().equals("device") && Boolean.FALSE.equals(event.payload().get("active"))) ||
                     (event.type().equals("track") && (event.payload().get("source") == null || track == null ||
                     !java.util.Objects.equals(track.payload().get("source"), event.payload().get("source"))))) {
-                deck.keySet().removeAll(List.of("track", "structure", "art", "beat", "position", "mixer"));
+                deck.keySet().removeAll(List.of("track", "structure", "waveformData", "art", "beat", "position", "mixer"));
             }
             deck.put(event.type(), event);
         }

@@ -11,6 +11,10 @@ public final class BridgeRegressionTest {
     public static void main(String[] args) throws Exception {
         BeatLinkAdapter.configurePlayerNumber(new RunningCdj());
         checkStandardNumberSelection();
+        checkWaveformCache();
+        List<Integer> heights = BeatLinkAdapter.waveformHeights(new ExampleWaveform());
+        check(heights.size() == 20, "one second produces twenty 50ms samples");
+        check(heights.get(0) == 31 && heights.get(1) == 3, "bin boundaries retain peaks without shifting samples");
         check(BeatLinkAdapter.waveformIndex(null, 150) == -1, "unknown waveform position");
         check(BeatLinkAdapter.waveformIndex(-1L, 150) == -1, "negative waveform position");
         check(BeatLinkAdapter.waveformIndex(0L, 0) == -1, "empty waveform");
@@ -365,6 +369,30 @@ public final class BridgeRegressionTest {
     private static void check(boolean condition, String message) {
         if (!condition) throw new AssertionError(message);
     }
+    private static void checkWaveformCache() throws Exception {
+        var log = Files.createTempFile("prodj-waveform-test", ".jsonl");
+        try (var broadcaster = new EventBroadcaster(log)) {
+            var source = Map.of("id", 1, "player", 1, "slot", "USB_SLOT");
+            broadcaster.publish(new CanonicalEvent("track", 2, 1, Map.of("player", 1, "source", source)));
+            broadcaster.publish(new CanonicalEvent("waveformData", 2, 2, Map.of("player", 1, "source", source,
+                    "data", Map.of("sampleMs", 50, "heights", List.of(1, 31)))));
+            var sink = new RecordingSink();
+            broadcaster.add(sink);
+            check(sink.messages.stream().anyMatch(message -> message.contains("waveformData")), "late clients receive cached waveform");
+            broadcaster.publish(new CanonicalEvent("track", 2, 3, Map.of("player", 1, "source", Map.of("id", 2, "player", 1, "slot", "USB_SLOT"))));
+            broadcaster.publish(new CanonicalEvent("waveformData", 2, 4, Map.of("player", 1, "source", source,
+                    "data", Map.of("sampleMs", 50, "heights", List.of(31)))));
+            var afterChange = new RecordingSink();
+            broadcaster.add(afterChange);
+            check(afterChange.messages.stream().noneMatch(message -> message.contains("waveformData")), "track changes clear waveforms and reject late old data");
+        } finally { Files.deleteIfExists(log); }
+    }
+
+    public static final class ExampleWaveform {
+        public int getFrameCount() { return 150; }
+        public int segmentHeight(int index, int scale) { return index == 7 ? 31 : 3; }
+    }
+
     private static final class RecordingSink implements EventSink {
         final List<String> messages = new ArrayList<>();
         public void send(String message) { messages.add(message); }

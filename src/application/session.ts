@@ -90,6 +90,8 @@ export class ProDjLinkSession {
       this.deck(event.payload.player).updatePosition(event);
     }
 
+    if (event.type === 'waveformData') this.deck(event.payload.player).updateWaveform(event);
+
     if (event.type === 'art') {
       this.deck(event.payload.player).updateArtwork(event);
     }
