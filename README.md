@@ -229,6 +229,17 @@ fades out without advancing the sequence on its own. Pause holds the effect;
 master and track changes reset it until the next matching beat. A lost connection
 turns the spots dark.
 
+The shared lighting model uses normalized RGBW values (warm white) and a logical
+dimmer with floating-point precision. Existing palettes still use RGB with warm
+white set to 0. The pure Ape Labs **8-channel/16-bit fixture profile** encodes eight
+bytes in red coarse/fine, blue coarse/fine, green coarse/fine, warm white coarse/fine
+order according to the [manufacturer mapping](https://apelabs.com/de/manual/maxi/dmx.html).
+The logical and master dimmers scale all four colors before final quantization;
+there is no separate dimmer channel. This is a tested data conversion only, with
+no patch, network transport or device configuration. DMX mode and addresses will
+be configured manually later; standalone settings, presets, groups and pairing
+remain untouched.
+
 The preview has **no hardware output**: DMX, Art-Net, USB output and RB-DMX1
 integration have not been implemented.
 
