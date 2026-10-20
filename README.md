@@ -173,6 +173,27 @@ Beat 1 übernommen und weich überblendet. Fehlende Waveform-/Positionsdaten
 verwenden neutrale Farben, ohne Energie zu erfinden. Live und Replay nutzen
 dieselbe positionsbezogene Berechnung; der Geräte-/Trackwechsel setzt sie zurück.
 
+Die vom Track übermittelte **Lighting-Bank** wirkt zusätzlich auf den Stil.
+Diese ProDJ-Beats-Zuordnungen bilden keine originalen rekordbox-Makros nach:
+
+| Bank | Ergänzung zu Phrase, Mood und Energie |
+| --- | --- |
+| `default`, unbekannt oder fehlend | Bisheriges Verhalten unverändert |
+| `cool` / `warm` | Kleine kühlere/wärmere Farbverschiebung, weichere Übergänge, zurückhaltendere Pulse |
+| `natural` | Etwas weniger Sättigung, weichere Übergänge und Pulse |
+| `hot` / `vivid` | Wärmer beziehungsweise satter, weiterhin mit weichen Übergängen |
+| `subtle` | Weniger Sättigung, doppelte Schrittlänge, lange Überblendungen, halbierte Pulsstärke |
+| `club-1` | Etwas satter, weichere Übergänge und gedämpfte Pulse |
+| `club-2` | Leicht verschobene Farbtöne, doppelte Schrittlänge, weichere Übergänge und Pulse |
+
+Bankänderungen werden wie Mood und Phrase erst auf Beat 1 übernommen. Keine Bank
+beschleunigt die Schritte gegenüber dem bestehenden Profil; Schrittlängen bleiben
+auf 1–8 echte Beats begrenzt. Die Energieverschiebung bleibt zusätzlich auf ±8 Grad
+um die jeweilige Bankpalette begrenzt. Es gibt keine zufälligen Farbwechsel,
+zusätzlichen Strobo-Impulse oder Auswertung eines Gerätemikrofons. Die Bank im
+Player zeigt den empfangenen Trackwert; ein noch ausstehender Stilwechsel wartet
+auf Beat 1. Live, Replay, Vorschau und DMX verwenden denselben Stilfluss.
+
 Die acht virtuellen RGB-PAR-Spots ergänzen die Track-Anzeige um:
 
 - **Fanning:** gespiegelte Lichtfolgen mit Hin- und Rücklauf.
@@ -499,6 +520,26 @@ amplitude-based approximation, not frequency or musical harmony detection.
 New color targets latch only on beat 1 and fade smoothly. Missing waveform or
 position data uses neutral palette colors without inventing energy. Live and
 replay share the same position-based calculation, reset on device/track changes.
+
+The track's **lighting bank** additionally shapes the style. These are ProDJ Beats
+interpretations, not reproductions of original rekordbox lighting macros:
+
+| Bank | Contribution alongside phrase, mood and energy |
+| --- | --- |
+| `default`, unknown or missing | Existing behavior unchanged |
+| `cool` / `warm` | Small cooler/warmer hue shifts, softer fades and pulses |
+| `natural` | Slightly reduced saturation, softer fades and pulses |
+| `hot` / `vivid` | Warmer or more saturated colors, retaining smooth fades |
+| `subtle` | Reduced saturation, doubled step length, long fades, half pulse strength |
+| `club-1` | Slightly more saturation, softer fades and reduced pulses |
+| `club-2` | Modest hue shift, doubled step length, softer fades and pulses |
+
+Bank changes latch on beat 1, alongside mood and phrase. No bank speeds up the
+existing profile; step lengths stay within 1–8 observed beats. Energy adds no more
+than ±8 degrees around the bank palette. There are no random color changes,
+additional strobe pulses or device-microphone analysis. The player card displays
+the received bank while any pending style change waits for beat 1. Live, replay,
+preview and DMX share the same style calculation.
 
 The eight virtual RGB-PAR spots complement the track display with:
 

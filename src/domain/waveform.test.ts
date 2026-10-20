@@ -3,7 +3,7 @@ import test from 'node:test';
 import { prepareWaveform, waveformBrightness } from './waveform';
 import { EventParser } from './events';
 import { ProDjLinkSession } from '../application/session';
-import { lightingFrame } from './lighting';
+import { lightingFrame, lightingProfile } from './lighting';
 import { observeSession } from '../application/event-source';
 import { ReplayEventSource, WebSocketEventSource } from '../infrastructure/event-sources';
 
@@ -96,6 +96,7 @@ test('live and replay share energy-driven color targets across seeks, bar change
   const sequence = [...events,
     raw('position', 500, { player: 1, source, positionMs: 5000, playbackStatus: 'playing' }),
     raw('beat', 501, { player: 1, tempo: 120, beatWithinBar: 1, trackBeat: 5 }),
+    raw('structure', 502, { player: 1, source, bank: 'club-2', mood: 'mid', phrases: [{ startBeat: 1, beats: 100, kind: 'chorus' }] }),
     raw('beat', 1001, { player: 1, tempo: 120, beatWithinBar: 2, trackBeat: 6 }),
     raw('position', 1500, { player: 1, source, positionMs: 2000, playbackStatus: 'playing' }),
     raw('beat', 1501, { player: 1, tempo: 120, beatWithinBar: 1, trackBeat: 17 })];
@@ -111,6 +112,7 @@ test('live and replay share energy-driven color targets across seeks, bar change
   assert.deepEqual(replaySnapshots, snapshots);
   assert.equal(snapshots.length, sequence.length);
   assert.deepEqual(live.snapshot().lighting, replay.snapshot().lighting);
+  assert.deepEqual(live.snapshot().lighting.profile, lightingProfile('mid', 'chorus', 'club-2'));
   stop();
 });
 

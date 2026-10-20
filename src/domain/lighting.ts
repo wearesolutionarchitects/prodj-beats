@@ -1,5 +1,5 @@
 import { waveformBrightness, waveformEnergy, type WaveformEnvelope } from './waveform';
-import { phrasePalette } from './lighting-color';
+import { phrasePalette, lightingBankStyle } from './lighting-color';
 import type { DeckState } from './deck';
 import type { MasterEvent, ProDjLinkEvent } from './events';
 
@@ -10,7 +10,7 @@ export interface ParSpot extends LightOutput {
 }
 export type LightingPattern = 'fan' | 'groups' | 'all' | 'wash';
 export interface LightingProfile { stepBeats: number; fadeFraction: number; pulseStrength: number }
-export function lightingProfile(mood: string | null, phrase: string | null): LightingProfile {
+export function lightingProfile(mood: string | null, phrase: string | null, bank: string | null = null): LightingProfile {
   const calm = phrase?.startsWith('intro') || phrase?.startsWith('outro');
   const breakPhrase = phrase?.startsWith('break');
   const verse = phrase?.startsWith('verse') || phrase?.startsWith('bridge');
@@ -18,9 +18,10 @@ export function lightingProfile(mood: string | null, phrase: string | null): Lig
   // Mood is a structural category, not an audio energy measurement.
   const category = mood?.toLowerCase();
   const multiplier = category === 'low' ? 2 : category === 'high' ? 0.5 : 1;
-  return { stepBeats: Math.max(1, Math.min(8, base * multiplier)),
-    fadeFraction: breakPhrase || calm ? 0.85 : verse ? 0.7 : 0.45,
-    pulseStrength: breakPhrase ? 0.2 : calm ? 0.35 : verse ? 0.55 : 1 };
+  const style = lightingBankStyle(bank);
+  return { stepBeats: Math.max(1, Math.min(8, base * multiplier * style.stepMultiplier)),
+    fadeFraction: Math.max(style.minFade, breakPhrase || calm ? 0.85 : verse ? 0.7 : 0.45),
+    pulseStrength: (breakPhrase ? 0.2 : calm ? 0.35 : verse ? 0.55 : 1) * style.pulse };
 }
 export interface LightingSnapshot {
   dynamics?: { waveform: WaveformEnvelope; positionMs: number; at: number; rate: number; playing: boolean } | null;
@@ -126,10 +127,10 @@ export class LightingPreview {
         const oldSwap = this.paletteSwap;
         if (beat === 1) {
           this.activePhrase = deck?.beat?.phrase?.kind ?? null;
-          this.profile = lightingProfile(deck?.structure?.mood ?? null, this.activePhrase);
+          this.profile = lightingProfile(deck?.structure?.mood ?? null, this.activePhrase, deck?.structure?.bank ?? null);
           const rate = master?.payload.tempo && master.payload.bpm ? master.payload.tempo / master.payload.bpm : 1;
           const position = deck?.positionMs == null ? null : deck.positionMs + Math.max(0, event.ms - (deck.positionUpdatedAt ?? event.ms)) * rate;
-          this.palette = phrasePalette(this.activePhrase, waveformEnergy(deck?.waveform, position));
+          this.palette = phrasePalette(this.activePhrase, waveformEnergy(deck?.waveform, position), deck?.structure?.bank ?? null);
           this.paletteSwap = Math.floor(this.step / 16) % 2 === 1;
         }
         const tempo = event.payload.tempo ?? master?.payload.tempo;

@@ -167,6 +167,7 @@ function DeckCardView({ deck }: { deck: DeckState }) {
           <Fact label="Remaining time" value={formatTime(time.remainingMs)} timing warning={time.ending} />
           <Fact label="Mood" value={deck.structure?.mood ?? '-'} />
           <Fact label="Phrase" value={deck.beat?.phrase?.kind ?? '-'} />
+          <Fact label="Bank" value={deck.structure?.bank?.trim() || '-'} fullWidth />
         </dl>
       </div>
 

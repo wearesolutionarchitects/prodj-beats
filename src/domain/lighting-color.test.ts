@@ -1,9 +1,59 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { phrasePalette } from './lighting-color';
+import { phrasePalette, lightingBankStyle } from './lighting-color';
 import { prepareWaveform, waveformEnergy } from './waveform';
 import { ProDjLinkSession } from '../application/session';
-import { lightingFrame } from './lighting';
+import { lightingFrame, lightingProfile } from './lighting';
+
+test('bank default and unknown labels preserve existing looks; known banks remain gentle and bounded', () => {
+  for (const phrase of [null, 'intro', 'verse-1', 'chorus', 'break']) {
+    for (const bank of [null, 'default', 'unknown', '', 'constructor', 'toString']) {
+      assert.deepEqual(phrasePalette(phrase, 0.3, bank), phrasePalette(phrase, 0.3));
+      assert.deepEqual(lightingProfile('mid', phrase, bank), lightingProfile('mid', phrase));
+    }
+    for (const bank of ['cool', 'natural', 'hot', 'subtle', 'warm', 'vivid', 'club-1', 'club-2']) {
+      const profile = lightingProfile('mid', phrase, bank), base = lightingProfile('mid', phrase);
+      assert.ok(profile.stepBeats >= base.stepBeats && profile.stepBeats <= 8);
+      assert.ok(profile.fadeFraction >= base.fadeFraction && profile.fadeFraction <= 0.9);
+      assert.ok(profile.pulseStrength <= base.pulseStrength);
+      for (const energy of [0, 0.5, 1]) {
+        phrasePalette(phrase, energy, bank).forEach(color => assert.ok(color.every(c => c >= 0 && c <= 1)));
+      }
+    }
+  }
+  assert.deepEqual(lightingBankStyle(' CLUB_2 '), lightingBankStyle('club-2'));
+  assert.notDeepEqual(phrasePalette('chorus', 0.5, 'cool'), phrasePalette('chorus', 0.5, 'warm'));
+  assert.ok(lightingProfile('mid', 'chorus', 'subtle').stepBeats > lightingProfile('mid', 'chorus').stepBeats);
+});
+
+test('bank changes latch on beat one with continuous color, clear on track changes and ignore foreign structure', () => {
+  const session = new ProDjLinkSession(), source = { id: 1, player: 1, slot: 'USB_SLOT' };
+  const emit = (type: string, ms: number, payload: unknown) => session.applyRaw({ type, version: 2, ms, payload });
+  const structure = (bank: string, identity = source) => ({ player: 1, source: identity, bank, mood: 'mid', phrases: [{ startBeat: 1, beats: 100, kind: 'chorus' }] });
+  const beat = (beatWithinBar: number, trackBeat: number, ms: number) => emit('beat', ms, { player: 1, tempo: 120, beatWithinBar, trackBeat });
+  emit('track', 0, { player: 1, source });
+  emit('master', 1, { player: 1, tempo: 120, bpm: 120, pitchPercent: 0, synced: false, bpmOnlySynced: false, beatWithinBar: 1, handoff: null });
+  emit('position', 2, { player: 1, source, positionMs: 0, playbackStatus: 'playing' });
+  emit('structure', 3, structure('default'));
+  beat(1, 1, 500);
+  const before = session.snapshot().lighting;
+  emit('structure', 501, structure('subtle'));
+  beat(2, 2, 1000); beat(3, 3, 1500);
+  assert.deepEqual(session.snapshot().lighting.profile, before.profile);
+  assert.deepEqual(session.snapshot().lighting.spots[0]!.color, before.spots[0]!.color);
+  const outgoing = session.snapshot().lighting;
+  beat(1, 5, 2500);
+  const changed = session.snapshot().lighting;
+  assert.deepEqual(changed.profile, lightingProfile('mid', 'chorus', 'subtle'));
+  assert.notDeepEqual(changed.spots[0]!.color, before.spots[0]!.color);
+  assert.deepEqual(lightingFrame(changed, 2500).spots[0]!.color, lightingFrame(outgoing, 2500).spots[0]!.color);
+  emit('structure', 2501, structure('hot', { ...source, id: 99 }));
+  beat(1, 9, 4500);
+  assert.deepEqual(session.snapshot().lighting.profile, changed.profile);
+  emit('track', 4501, { player: 1, source: { ...source, id: 2 } });
+  beat(1, 1, 5000);
+  assert.deepEqual(session.snapshot().lighting.profile, lightingProfile(null, null));
+});
 
 const hue = (color: readonly number[]) => {
   const [r, g, b] = color as [number, number, number];
