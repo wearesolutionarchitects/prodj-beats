@@ -2,6 +2,8 @@
 
 **[Deutsch](#deutsch) · [English](#english)**
 
+**Fortschritt / Progress · 20.10.2026:** [Aktueller Stand](#aktueller-stand) · [Current status](#current-status)
+
 ![ProDJ Beats: Live-Anzeige mit zwei Decks und Mixer-Masterdaten / Live display with two decks and mixer master data](docs/images/prodj-beats-live.png)
 
 *Live-Daten eines XDJ-XZ im Browser: zwei Decks und Tempo-Master im Überblick.
@@ -12,12 +14,12 @@ Device addresses are hidden in this screenshot.*
 
 ![Adaptive Lighting-Vorschau mit acht RGBW-Spots / Adaptive lighting preview with eight RGBW spots](docs/images/prodj-beats-lighting-preview.jpg)
 
-*Aktuelle Live-Aufnahme: Gruppenwechsel in einer Verse-Phrase bei 126,13 BPM.
+*Früherer Entwicklungsstand: Gruppenwechsel in einer Verse-Phrase bei 126,13 BPM.
 Mood und Phrase steuern die Effektgeschwindigkeit; neue Profile greifen auf
 Beat 1. Der Screenshot zeigt die acht virtuellen Spots ohne lokale Geräteadressen.
 Die Browseransicht ist eine Vorschau ohne eigene Hardware-Ausgabe.*
 
-*Current live capture: group exchange during a verse at 126.13 BPM. Mood and
+*Earlier development stage: group exchange during a verse at 126.13 BPM. Mood and
 phrase control effect speed; new profiles take effect on beat 1. The screenshot
 shows the eight virtual spots without local device addresses. The browser view
 is a preview with no hardware output of its own.*
@@ -76,8 +78,11 @@ soweit vom Gerät und vom geladenen Track verfügbar:
 - BPM, Beat im Takt, absolute Track-Beatposition, übermittelter Mood und musikalische Phrasen.
 - Tempo-Master mit effektivem Tempo, Grund-BPM, Pitch und Sync-Status.
 - Beat-Anzeige 1–4, gemeldete Masterübergaben und On-Air-Kanäle.
-- Virtuelle Lighting-Vorschau mit acht RGB-PAR-Spots: links und rechts je vier,
-  synchron zum Tempo-Master; keine Hardware-Ausgabe.
+- Acht virtuelle RGBW-Spots: links und rechts je vier, synchron zum Tempo-Master.
+- Effektive Lighting-Bank mit Herkunft: Player / ProDJ Link oder SQLite-Cache,
+  einschließlich ursprünglicher Player-Bank.
+- Optionale Art-Net-Ausgabe mit Senderstatus; die GUI zeigt per SSE bis zu 30 Hz
+  die Farben und 16-Bit-/Grob-/Fein-Werte desselben gesendeten Frames.
 - Verbundene Geräte und deren vom Netzwerk gemeldete Adressen.
 - Aufklappbare Verbindungsdiagnose: Bridge-Adapter, Playernummer, Statussenden
   und Empfang von Ankündigungen, Status, Beats und Metadaten.
@@ -85,6 +90,32 @@ soweit vom Gerät und vom geladenen Track verfügbar:
 Live-Daten und Fixture-Replay verwenden denselben Eventvertrag und dieselbe
 Zustandsverarbeitung. Replay ermöglicht Entwicklung und Tests ohne DJ-Hardware.
 Unbekannte Werte bleiben als solche erkennbar.
+
+#### Zuletzt bestätigt · 20. Oktober 2026
+
+- **Automatische Bank beim Laden:** Ein lesender Abgleich mit der lokalen
+  rekordbox-Bibliothek und den zugehörigen Analysedateien ergänzt den SQLite-Cache.
+  Bibliotheks-/Song-ID, exakte Metadaten und der vollständige Phrasen-Fingerabdruck
+  sichern die Zuordnung. Im lokalen Abgleich entstanden 582 Verknüpfungen;
+  578 sind eindeutig, vier mehrdeutige Treffer bleiben ausgeschlossen. Private
+  Bibliotheks- und Cache-Dateien werden nicht mit dem Repository veröffentlicht.
+- **Live-Übernahme bestätigt:** Nach einem automatischen Trackwechsel wurde
+  `cool · SQLite cache (Player: default)` korrekt angezeigt. Ohne eindeutigen
+  Treffer bleiben die vom Player gelieferten Daten maßgeblich.
+- **Bankbasierte Lichtstimmungen:** Die Bank bestimmt jetzt die Grundpalette,
+  Mood die Geschwindigkeit und Phrase die Inszenierung innerhalb dieser Farbwelt.
+  Bei `mid · chorus · cool` bleibt der Refrain blau/violett, nutzt alle acht Spots
+  und Gruppenwechsel. Ruhige Passagen erhalten weichere Akzente. Waveform-Energie
+  verfeinert Helligkeit und Sättigung; Farbverschiebungen bleiben auf ±8 Grad
+  begrenzt. Stilwechsel greifen auf Beat 1 und werden weich überblendet.
+  Die Funktion wurde im lokalen Live-Aufbau bestätigt.
+- **Hardwarepfad erprobt:** RGBW-16-Bit-Ausgabe über Showtec NET-2 und Ape Labs
+  Connect funktioniert im lokalen Aufbau. Bildschirmfarben sind eine Annäherung;
+  ein erfolgreicher UDP-Versand allein ist keine Empfangsbestätigung des Geräts.
+- **Gemeinsame Verarbeitung geprüft:** Live, Replay, Vorschau und Ausgabe nutzen
+  dieselbe Lighting-Logik. Letzter lokaler Prüfstand: **111 bestandene Node-/
+  TypeScript-Tests**, erfolgreiche Java-Regression, Typprüfung und Build.
+  Das ist ein lokaler Nachweis, keine Aussage über Remote-CI oder weitere Geräte.
 
 **Grenzen:** Andere Gerätemodelle sind durch die XDJ-XZ-Tests nicht automatisch
 validiert. Master-Level-Regler, Audiopegel und Beat-FX-Einstellungen werden am
@@ -461,8 +492,11 @@ device and loaded track, the interface shows:
 - BPM, beat within the bar, absolute track beat, reported mood and musical phrases.
 - Tempo master with effective tempo, base BPM, pitch and sync status.
 - A 1–4 beat indicator, reported master handoffs and on-air channels.
-- Virtual lighting preview with eight RGB-PAR spots: four on each side,
-  synchronised to the tempo master; no hardware output.
+- Eight virtual RGBW spots: four on each side, synchronised to the tempo master.
+- Effective lighting bank with its origin: player / ProDJ Link or SQLite cache,
+  retaining the original player bank.
+- Optional Art-Net output with sender status; SSE updates the GUI at up to 30 Hz
+  with colors and 16-bit/coarse/fine values from the same transmitted frame.
 - Connected devices and their network-reported addresses.
 - Expandable connection diagnostics: bridge adapter, player number, own status
   sending and reception of announcements, status, beats and metadata.
@@ -470,6 +504,32 @@ device and loaded track, the interface shows:
 Live data and fixture replay share the same event contract and state handling.
 Replay supports development and testing without DJ hardware. Unknown values
 remain visibly unknown.
+
+#### Latest verified progress · 20 October 2026
+
+- **Automatic bank on track load:** A read-only comparison with the local
+  rekordbox library and its analysis files populates the SQLite cache. Library/
+  song IDs, exact metadata and the complete phrase fingerprint establish identity.
+  The local sync produced 582 mappings: 578 are unique, while four ambiguous
+  matches remain excluded. Private library and cache files are not published
+  with the repository.
+- **Live enrichment verified:** After an automatic track change, the GUI correctly
+  displayed `cool · SQLite cache (Player: default)`. Without a unique match,
+  player-supplied data remains authoritative.
+- **Bank-led lighting moods:** The bank now owns the base palette, mood controls
+  speed and phrases shape staging within that color family. For
+  `mid · chorus · cool`, the chorus stays blue/violet while using all eight spots
+  and group exchanges. Calm passages receive softer accents. Waveform energy
+  refines brightness and saturation; hue shifts remain bounded to ±8 degrees.
+  Style changes latch on beat 1 and fade smoothly. This behavior has been
+  confirmed in the local live setup.
+- **Hardware path exercised:** RGBW 16-bit output through a Showtec NET-2 and
+  Ape Labs Connect works in the local setup. Screen colors are an approximation;
+  successful UDP transmission alone does not confirm receipt by the device.
+- **Shared processing verified:** Live, replay, preview and output use the same
+  lighting logic. Latest local checks: **111 passing Node/TypeScript tests**,
+  successful Java regression, type checking and build. These are local results,
+  not a claim about remote CI or other hardware models.
 
 **Limitations:** XDJ-XZ testing does not validate other hardware models.
 Master-level knob position, audio meters and Beat FX settings are currently
