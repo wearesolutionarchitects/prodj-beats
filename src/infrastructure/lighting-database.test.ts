@@ -79,3 +79,29 @@ test('active journal snapshots and existing foreign targets are rejected without
   const db = new LightingDatabase(target); writeFileSync(paths.user + '-wal', 'pending');
   assert.throws(() => db.importSnapshots(paths), /consistent source snapshot/); db.close();
 });
+
+test('runtime matching requires unique verified metadata and phrase fingerprint, using read-only cache', async t => {
+  const { createHash } = await import('node:crypto');
+  const { paths, target } = setup(t);
+  const identity = { title: 'Synthetic', artist: 'Example', durationMs: 120000,
+    phrases: [{ startBeat: 1, beats: 32, kind: 'intro' }] };
+  const phraseSha256 = createHash('sha256').update(JSON.stringify(identity.phrases)).digest('hex');
+  const db = new LightingDatabase(target); db.importSnapshots(paths);
+  assert.equal(db.resolveBank(identity), null);
+  const confirmed = { masterDbId: 456, songId: 123, title: identity.title, artist: identity.artist,
+    durationMs: identity.durationMs, phraseSha256, evidence: 'synthetic verified mapping' };
+  db.saveIdentity(confirmed); db.close();
+  const before = readFileSync(target);
+  const runtime = new LightingDatabase(target, true);
+  assert.equal(runtime.resolveBank(identity)!.bank, 'cool');
+  assert.equal(runtime.resolveBank(identity)!.masterDbId, 456);
+  assert.match(runtime.resolveBank(identity)!.snapshotSha256, /^[a-f0-9]{64}$/);
+  for (const other of [{ ...identity, title: 'Other' }, { ...identity, artist: 'Other' },
+    { ...identity, durationMs: 120001 }, { ...identity, phrases: [] },
+    { ...identity, phrases: [{ startBeat: 2, beats: 32, kind: 'intro' }] }]) assert.equal(runtime.resolveBank(other), null);
+  assert.throws(() => runtime.saveIdentity(confirmed), /readonly/); runtime.close();
+  assert.deepEqual(readFileSync(target), before);
+  const ambiguous = new LightingDatabase(target);
+  ambiguous.saveIdentity({ ...confirmed, masterDbId: 789 });
+  assert.equal(ambiguous.resolveBank(identity), null); ambiguous.close();
+});

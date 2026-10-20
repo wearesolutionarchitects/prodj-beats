@@ -1,3 +1,4 @@
+import type { LightingResolver } from '../application/cached-event-source';
 import type { EventObserver, EventSource } from '../application/event-source';
 
 export class WebSocketEventSource implements EventSource {
@@ -84,3 +85,12 @@ function timestamp(input: unknown): number {
       typeof input.ms === 'number' && Number.isFinite(input.ms)) return input.ms;
   return 0;
 }
+
+/** Existing app server only; bounded failure falls back to player data. */
+export const resolveLightingBank: LightingResolver = async identity => {
+  const response = await fetch('/api/lighting-cache', { method: 'POST',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(identity),
+    signal: AbortSignal.timeout(2000) });
+  if (!response.ok) return null;
+  return response.json();
+};

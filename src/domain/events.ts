@@ -134,6 +134,14 @@ export const structureEventSchema = payloadEnvelopeSchema.extend({
   payload: z.object({
     source: sourceSchema,
     bank: z.string(),
+    cachedBank: z.object({
+      bank: z.enum(['cool', 'natural', 'hot', 'subtle', 'warm', 'vivid', 'club-1', 'club-2']),
+      origin: z.literal('sqlite'),
+      masterDbId: z.number().int(),
+      songId: z.number().int(),
+      snapshotSha256: z.string().regex(/^[a-f0-9]{64}$/),
+      macroSnapshotSha256: z.string().regex(/^[a-f0-9]{64}$/)
+    }).optional(),
     mood: z.string(),
     phrases: z.array(phraseSchema),
     player: z.number().int().positive()

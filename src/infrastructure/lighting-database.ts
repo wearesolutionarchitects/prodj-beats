@@ -2,6 +2,7 @@ import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import { createHash } from 'node:crypto';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
+import type { LightingLookup, CachedBank } from '../application/cached-event-source';
 
 const TABLES = {
   user: ['content', 'phrase_data', 'lighting_data'],
@@ -14,8 +15,8 @@ const digest = (path: string) => createHash('sha256').update(readFileSync(path))
 export class LightingDatabase {
   private readonly db: DatabaseSync;
 
-  constructor(path: string) {
-    this.db = new DatabaseSync(path);
+  constructor(path: string, readOnly = false) {
+    this.db = new DatabaseSync(path, { readOnly });
     const version = this.db.prepare('PRAGMA user_version').get()!.user_version;
     if (version !== 0 && version !== 1) { this.db.close(); throw new Error('Unsupported lighting database schema'); }
     if (version === 1) {
@@ -24,6 +25,7 @@ export class LightingDatabase {
       }
       return;
     }
+    if (readOnly) { this.db.close(); throw new Error('Cache is not initialized'); }
     if (version === 0 && Number(this.db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").get()!.n) > 0) {
       this.db.close(); throw new Error('Target is not an empty ProDJ lighting cache');
     }
@@ -111,6 +113,24 @@ export class LightingDatabase {
     const banks: Record<number, string> = { 1: 'cool', 2: 'natural', 3: 'hot', 4: 'subtle', 5: 'warm', 6: 'vivid', 7: 'club-1', 8: 'club-2' };
     return { contentId: row.contentId, macroPatternId: row.macroPatternId, energy: row.energy,
       pattern: row.pattern, bank: banks[Number(row.pattern)] ?? null, phrases };
+  }
+
+  /** Exact, previously verified library mapping. Never infer library IDs from player IDs. */
+  resolveBank(identity: LightingLookup): CachedBank | null {
+    if (!identity.phrases.length) return null;
+    const hash = createHash('sha256').update(JSON.stringify(identity.phrases)).digest('hex');
+    const matches = this.db.prepare(`SELECT master_db_id,song_id FROM track_identity
+      WHERE title=? AND artist=? AND duration_ms=? AND phrase_sha256=?`)
+      .all(identity.title, identity.artist, identity.durationMs, hash);
+    if (matches.length !== 1) return null;
+    const match = matches[0]!;
+    const value = this.lookup(Number(match.master_db_id), Number(match.song_id));
+    const snapshot = this.db.prepare("SELECT sha256 FROM source_snapshot WHERE role='user'").get();
+    const macros = this.db.prepare("SELECT sha256 FROM source_snapshot WHERE role='macros'").get();
+    if (!value?.bank || !snapshot || !macros) return null;
+    return { bank: value.bank as CachedBank['bank'], origin: 'sqlite',
+      masterDbId: Number(match.master_db_id), songId: Number(match.song_id),
+      snapshotSha256: String(snapshot.sha256), macroSnapshotSha256: String(macros.sha256) };
   }
 
   saveIdentity(identity: { masterDbId: number; songId: number; title: string; artist: string; durationMs: number; phraseSha256: string; evidence: string }) {

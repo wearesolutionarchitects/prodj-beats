@@ -46,6 +46,9 @@ export interface CurrentPhrase extends Phrase {
 
 export interface Structure {
   bank: string;
+  playerBank?: string;
+  bankOrigin?: 'player' | 'sqlite';
+  bankProvenance?: StructureEvent['payload']['cachedBank'];
   mood: string;
   phrases: Phrase[];
   player: PlayerId;
@@ -127,6 +130,15 @@ export class Deck {
       this.trackSince = event.ms;
     }
     if (!source) return;
+    const previous = this.state.track;
+    const structure = this.state.structure;
+    // Metadata corrections invalidate a cache match even if the export ID is unchanged.
+    if (structure?.bankOrigin === 'sqlite' && (previous?.title !== (event.payload.title ?? null) ||
+        previous?.artist !== (event.payload.artist ?? null) || previous?.duration !== (event.payload.duration ?? null))) {
+      structure.bank = structure.playerBank ?? 'unknown';
+      structure.bankOrigin = 'player';
+      structure.bankProvenance = undefined;
+    }
     this.state.track = {
       source,
       album: event.payload.album ?? null,
@@ -143,7 +155,10 @@ export class Deck {
   updateStructure(event: StructureEvent): void {
     if (!this.accept(event)) return;
     this.state.structure = {
-      bank: event.payload.bank,
+      bank: event.payload.cachedBank?.bank ?? event.payload.bank,
+      playerBank: event.payload.bank,
+      bankOrigin: event.payload.cachedBank ? 'sqlite' : 'player',
+      bankProvenance: event.payload.cachedBank,
       mood: event.payload.mood,
       phrases: event.payload.phrases,
       player: event.payload.player,

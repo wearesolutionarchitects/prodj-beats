@@ -25,9 +25,27 @@ Banknummern werden aus `macro_pattern.pattern` interpretiert: 1 cool, 2 natural,
 `macro_pattern_id` ist ein separater Schlüssel und keine Banknummer. Eigene
 Phrasen-Overrides bleiben mit `macro_id` und `initial_macro_id` erhalten.
 
-Der Cache wird noch nicht automatisch in Live-/Replay-Ereignisse eingemischt und
-ändert keine laufende Ausgabe. Die bestätigte Trackverknüpfung und ein kanonisches
-Anreicherungsereignis müssen vor der automatischen Nutzung eingeführt werden.
+`CachedEventSource` reichert Live und Replay über denselben Parser/Session-Fluss
+an. Titel, Künstler, exakte Dauer in Millisekunden und SHA-256 von
+`JSON.stringify(phrases)` müssen genau einer bestätigten `track_identity` entsprechen.
+Keine unscharfe Suche, keine Gleichsetzung von Export- und Bibliotheksnummern.
+Fehlende, mehrdeutige oder nicht verfügbare Treffer ändern die Player-Bank nicht.
+Der bestehende App-Server öffnet ausschließlich `data/lighting.sqlite` lesend und
+stellt `POST /api/lighting-cache` bereit; der zentrale Sender nutzt denselben Resolver.
+Ereignisse bleiben bis zum Ende einer Abfrage geordnet; HTTP-Abfragen brechen nach
+zwei Sekunden ab. Verbindungsverlust oder Abmelden verwirft ausstehende Antworten.
+
+Das kanonische v2-`structure`-Ereignis behält `bank` als Player-Wert. Das optionale
+`cachedBank` enthält die effektive Bank, `origin=sqlite`, lokale Bibliotheks-/Song-ID
+und die SHA-256-Werte des User- und Makro-Snapshots. So kann eine angereicherte Aufzeichnung auch
+ohne lokale Datenbank wiedergegeben werden. Die Session zeigt effektive Bank und
+Herkunft, die GUI zusätzlich den Player-Wert. Trackwechsel, Entladen und
+Verbindungsverlust entfernen die Zuordnung mit den übrigen Track-Assets.
+Bestehende Regeln für Bankwechsel auf Beat 1 gelten auch für Cache-Banken.
+Makro-Timelines sind persistiert, werden aber noch nicht als Original-Lichtshow
+abgespielt. Neu angelegte oder ersetzte Cache-Dateien erfordern einen Neustart des
+bestehenden gemeinsamen Dev-Prozesses; laufende Lookup-Ergebnisse werden pro
+Subscription begrenzt zwischengespeichert.
 Es wird keine SQLCipher-Zugangsinformation gespeichert. `master.db3` des
 rekordbox-Gerätekatalogs und private Venue-/Gerätekonfigurationen sind nicht Teil
 des Imports. Öffentliche Beispiele und Tests verwenden ausschließlich synthetische Daten.
@@ -45,7 +63,19 @@ tables. Confirmed identities and their evidence live in `track_identity`.
 Lookups require the pair `(master_db_id,song_id)` from the local library. Export
 IDs or player slots must not be assumed equivalent. Bank comes from the pattern's
 `pattern` field, not its `id`; unknown values stay unknown. No credentials are
-stored. This persistence layer does not yet enrich live/replay events or change
-hardware output. Automatic integration requires verified track matching and a
-shared canonical enrichment event. Original device catalogs and venue setups
-are excluded. Tests contain synthetic data only.
+stored. `CachedEventSource` enriches live and replay through the same parser and
+session, including the central lighting sender. Exact title, artist, duration in
+milliseconds and the complete phrase JSON SHA-256 must match one verified identity.
+Missing, ambiguous or unavailable results preserve the player bank. Runtime cache
+access is read-only; original databases are never accessed. The existing app server
+provides `POST /api/lighting-cache`; HTTP lookups time out after two seconds, keep
+events ordered and discard pending results on disconnect/unsubscribe.
+
+The optional v2 structure `cachedBank` records the override and snapshot provenance,
+while `bank` retains the player value. Enriched recordings can replay without the
+local database. The GUI labels the source and original bank. Track change, unload
+and connection loss clear the association; style changes still latch on beat 1.
+Persisted macro timelines are not yet played as original rekordbox light shows.
+Restart the existing shared dev process after creating/replacing a cache; lookup
+results use a bounded per-subscription memo. Original device catalogs and venue
+setups are excluded. Tests contain synthetic data only.

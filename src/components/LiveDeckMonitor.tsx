@@ -1,4 +1,5 @@
 import LightingPreview from './LightingPreview';
+import { CachedEventSource } from '../application/cached-event-source';
 import ConnectionDiagnostics from './ConnectionDiagnostics';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { connectedDevices, masterTempo, ProDjLinkSession, type SessionSnapshot } from '../application/session';
@@ -7,7 +8,7 @@ import type { MixerEvent } from '../domain/events';
 import type { DeckState } from '../domain/deck';
 
 import { observeSession, type EventSource, type SourceStatus } from '../application/event-source';
-import { WebSocketEventSource, ReplayEventSource } from '../infrastructure/event-sources';
+import { WebSocketEventSource, ReplayEventSource, resolveLightingBank } from '../infrastructure/event-sources';
 import { fixtureEvents } from '../infrastructure/fixtures';
 
 export default function LiveDeckMonitor({ source }: { source?: EventSource }) {
@@ -19,7 +20,7 @@ export default function LiveDeckMonitor({ source }: { source?: EventSource }) {
     ? new ReplayEventSource(fixtureEvents, 20) : new WebSocketEventSource()), [source]);
 
   useEffect(() => {
-    return observeSession(selected, session, setSnapshot, setStatus);
+    return observeSession(new CachedEventSource(selected, resolveLightingBank), session, setSnapshot, setStatus);
   }, [session, selected]);
 
   // HMR can retain a snapshot created before the mixer field was added.
@@ -167,7 +168,7 @@ function DeckCardView({ deck }: { deck: DeckState }) {
           <Fact label="Remaining time" value={formatTime(time.remainingMs)} timing warning={time.ending} />
           <Fact label="Mood" value={deck.structure?.mood ?? '-'} />
           <Fact label="Phrase" value={deck.beat?.phrase?.kind ?? '-'} />
-          <Fact label="Bank" value={deck.structure?.bank?.trim() || '-'} fullWidth />
+          <Fact label="Bank" value={deck.structure ? `${deck.structure.bank || '-'} · ${deck.structure.bankOrigin === 'sqlite' ? `SQLite cache (Player: ${deck.structure.playerBank})` : 'Player / ProDJ Link'}` : '-'} fullWidth />
         </dl>
       </div>
 

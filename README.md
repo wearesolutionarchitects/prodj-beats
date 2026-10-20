@@ -190,8 +190,8 @@ Bankänderungen werden wie Mood und Phrase erst auf Beat 1 übernommen. Keine Ba
 beschleunigt die Schritte gegenüber dem bestehenden Profil; Schrittlängen bleiben
 auf 1–8 echte Beats begrenzt. Die Energieverschiebung bleibt zusätzlich auf ±8 Grad
 um die jeweilige Bankpalette begrenzt. Es gibt keine zufälligen Farbwechsel,
-zusätzlichen Strobo-Impulse oder Auswertung eines Gerätemikrofons. Die Bank im
-Player zeigt den empfangenen Trackwert; ein noch ausstehender Stilwechsel wartet
+zusätzlichen Strobo-Impulse oder Auswertung eines Gerätemikrofons. Die Bank in der
+Player-Card zeigt Wert und Herkunft; ein noch ausstehender Stilwechsel wartet
 auf Beat 1. Live, Replay, Vorschau und DMX verwenden denselben Stilfluss.
 
 #### Persistente lokale Lightingdaten
@@ -207,9 +207,14 @@ npm run lighting:import -- /path/to/snapshot/user.db3 /path/to/snapshot/macro.db
 ```
 
 Identische Snapshots werden übersprungen, fehlerhafte Aktualisierungen vollständig
-zurückgerollt. Der Cache steuert die Live-Ausgabe noch nicht automatisch: Dafür
-ist eine belegte Zuordnung zwischen Player-Track und lokaler Bibliotheksidentität
-erforderlich. Siehe [Cache-Format und Import](data/README.md).
+zurückgerollt. Live und Replay verwenden denselben Anreicherungsfluss: Nur wenn
+Titel, Künstler, exakte Dauer und SHA-256 der vollständigen Phrasen einer einzigen
+bestätigten Bibliotheksidentität entsprechen, übernimmt Lighting deren Cache-Bank.
+Die Player-Card zeigt „SQLite cache“ sowie die ursprüngliche Player-Bank; ohne
+Treffer bleibt „Player / ProDJ Link“ maßgeblich. Änderungen greifen weiterhin auf
+Beat 1. Der Laufzeitzugriff öffnet ausschließlich den Cache lesend; er importiert
+nichts und greift nicht auf Originaldatenbanken zu. Nach erstmaligem Anlegen des
+Caches den gemeinsamen Dev-Prozess neu starten. Siehe [Cache-Format und Import](data/README.md).
 
 Die acht virtuellen RGB-PAR-Spots ergänzen die Track-Anzeige um:
 
@@ -571,9 +576,13 @@ npm run lighting:import -- /path/to/snapshot/user.db3 /path/to/snapshot/macro.db
 ```
 
 Identical snapshots are skipped and failed refreshes roll back atomically. The
-cache does not yet automatically drive live output: verified matching between a
-player track and local library identity is required. See
-[cache format and import](data/README.md).
+same enrichment path serves live and replay. Lighting uses the cached bank only
+when title, artist, exact duration and the complete phrase SHA-256 match exactly
+one verified library identity. The player card labels “SQLite cache” and retains
+the original player bank; unmatched tracks use “Player / ProDJ Link”. Style changes
+still latch on beat 1. Runtime access opens only the cache read-only, without
+importing or accessing original databases. Restart the shared dev process after
+creating the cache for the first time. See [cache format and import](data/README.md).
 
 The eight virtual RGB-PAR spots complement the track display with:
 
