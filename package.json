@@ -15,7 +15,8 @@
     "bridge:test": "npm run bridge:build && node scripts/bridge-test.mjs",
     "bridge:run": "node scripts/bridge-run.mjs",
     "test": "node --test --import tsx src/**/*.test.ts scripts/*.test.mjs",
-    "fixture:replay": "node --import tsx src/scripts/replay-fixtures.ts"
+    "fixture:replay": "node --import tsx src/scripts/replay-fixtures.ts",
+    "lighting:import": "node --import tsx src/scripts/import-lighting.ts"
   },
   "dependencies": {
     "@astrojs/preact": "^6.0.6",

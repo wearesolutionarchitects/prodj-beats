@@ -194,6 +194,23 @@ zusätzlichen Strobo-Impulse oder Auswertung eines Gerätemikrofons. Die Bank im
 Player zeigt den empfangenen Trackwert; ein noch ausstehender Stilwechsel wartet
 auf Beat 1. Live, Replay, Vorschau und DMX verwenden denselben Stilfluss.
 
+#### Persistente lokale Lightingdaten
+
+Fehlende rekordbox-Lightingzuordnungen können in `data/lighting.sqlite` lokal
+persistiert werden. Der Cache enthält Track-/Phrasenzuordnungen und Makrodaten
+mit Herkunft und SHA-256; Originaldatenbanken werden ausschließlich lesend
+geöffnet. Private Datenbankdateien bleiben außerhalb von Git. Schema, Importer
+und synthetische Regressionstests sind Teil des Projekts.
+
+```sh
+npm run lighting:import -- /path/to/snapshot/user.db3 /path/to/snapshot/macro.db3
+```
+
+Identische Snapshots werden übersprungen, fehlerhafte Aktualisierungen vollständig
+zurückgerollt. Der Cache steuert die Live-Ausgabe noch nicht automatisch: Dafür
+ist eine belegte Zuordnung zwischen Player-Track und lokaler Bibliotheksidentität
+erforderlich. Siehe [Cache-Format und Import](data/README.md).
+
 Die acht virtuellen RGB-PAR-Spots ergänzen die Track-Anzeige um:
 
 - **Fanning:** gespiegelte Lichtfolgen mit Hin- und Rücklauf.
@@ -540,6 +557,23 @@ than ±8 degrees around the bank palette. There are no random color changes,
 additional strobe pulses or device-microphone analysis. The player card displays
 the received bank while any pending style change waits for beat 1. Live, replay,
 preview and DMX share the same style calculation.
+
+#### Persistent local lighting data
+
+Missing rekordbox lighting assignments can be persisted locally in
+`data/lighting.sqlite`. The cache preserves track/phrase assignments, macro data,
+source provenance and SHA-256 hashes. Original databases open read-only. Private
+database files stay out of Git; the schema, importer and synthetic regression
+tests are part of the project.
+
+```sh
+npm run lighting:import -- /path/to/snapshot/user.db3 /path/to/snapshot/macro.db3
+```
+
+Identical snapshots are skipped and failed refreshes roll back atomically. The
+cache does not yet automatically drive live output: verified matching between a
+player track and local library identity is required. See
+[cache format and import](data/README.md).
 
 The eight virtual RGB-PAR spots complement the track display with:
 
