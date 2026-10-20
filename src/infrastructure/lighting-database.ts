@@ -139,6 +139,24 @@ export class LightingDatabase {
       identity.songId, identity.title, identity.artist, identity.durationMs, identity.phraseSha256, identity.evidence);
   }
 
+  /** Replace only generated mappings atomically; retain independently confirmed evidence. */
+  syncLibraryIdentities(identities: Parameters<LightingDatabase['saveIdentity']>[0][]): boolean {
+    const method = 'rekordbox-library-anlz-v1';
+    const generated = "CASE WHEN json_valid(evidence) THEN json_extract(evidence,'$.method') END = ?";
+    const tuples = identities.map(i => [i.masterDbId, i.songId, i.title, i.artist, i.durationMs, i.phraseSha256, i.evidence]);
+    tuples.sort((a, b) => Number(a[0]) - Number(b[0]) || Number(a[1]) - Number(b[1]));
+    const previous = this.db.prepare(`SELECT * FROM track_identity WHERE ${generated}
+      ORDER BY master_db_id,song_id`).all(method).map(row => Object.values(row));
+    if (JSON.stringify(tuples) === JSON.stringify(previous)) return false;
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      this.db.prepare(`DELETE FROM track_identity WHERE ${generated}`).run(method);
+      for (const identity of identities) this.saveIdentity(identity);
+      this.db.exec('COMMIT');
+      return true;
+    } catch (error) { this.db.exec('ROLLBACK'); throw error; }
+  }
+
   private counts() {
     return { tracks: Number(this.db.prepare('SELECT count(*) AS n FROM rb_content').get()!.n),
       macros: Number(this.db.prepare('SELECT count(*) AS n FROM rb_macro').get()!.n) };

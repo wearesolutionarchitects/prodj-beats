@@ -679,7 +679,7 @@ final class BeatLinkAdapter implements AutoCloseable {
         return value == null ? null : value.toString();
     }
 
-    private int intValue(Object target, String... methodNames) {
+    private static int intValue(Object target, String... methodNames) {
         Object value = firstValue(target, methodNames);
         if (value instanceof Number number) {
             return number.intValue();
@@ -754,7 +754,7 @@ final class BeatLinkAdapter implements AutoCloseable {
         return value <= 0 ? null : value;
     }
 
-    private List<Map<String, Object>> structurePhrases(List<?> entries, int endBeat) {
+    static List<Map<String, Object>> structurePhrases(List<?> entries, int endBeat) {
         List<Map<String, Object>> phrases = new java.util.ArrayList<>();
         for (int index = 0; index < entries.size(); index++) {
             Object entry = entries.get(index);
@@ -825,14 +825,14 @@ final class BeatLinkAdapter implements AutoCloseable {
         return null;
     }
 
-    private String enumName(Object value) {
+    private static String enumName(Object value) {
         if (value == null) {
             return "unknown";
         }
         return value.toString().toLowerCase().replace('_', '-');
     }
 
-    private Object firstValue(Object target, String... methodNames) {
+    private static Object firstValue(Object target, String... methodNames) {
         for (String methodName : methodNames) {
             try {
                 return target.getClass().getMethod(methodName).invoke(target);

@@ -122,3 +122,36 @@ test('palette and energy latch only on beat one, fade continuously and reset tra
   assert.equal(session.snapshot().lighting.dynamics, null);
   assert.ok(session.snapshot().lighting.spots.every(spot => spot.intensity === 0));
 });
+
+test('cool and warm retain their bank color family across every phrase and waveform energy', () => {
+  for (const phrase of [null, 'intro', 'verse-1', 'bridge', 'chorus', 'break', 'outro']) {
+    for (const energy of [0, 0.25, 0.5, 0.75, 1]) {
+      for (const color of phrasePalette(phrase, energy, 'cool')) {
+        assert.ok(hue(color) >= 175 && hue(color) <= 275, `cool ${phrase}: ${hue(color)}`);
+      }
+      for (const color of phrasePalette(phrase, energy, 'warm')) {
+        assert.ok(hue(color) >= 10 && hue(color) <= 55, `warm ${phrase}: ${hue(color)}`);
+      }
+      for (const bank of ['cool', 'natural', 'hot', 'subtle', 'warm', 'vivid', 'club-1', 'club-2']) {
+        const neutral = phrasePalette(phrase, 0.5, bank);
+        phrasePalette(phrase, energy, bank).forEach((color, index) => {
+          const difference = Math.abs(hue(color) - hue(neutral[index]!));
+          assert.ok(Math.min(difference, 360 - difference) <= 8 + 1e-10);
+        });
+      }
+    }
+  }
+});
+
+test('chorus accent is stronger than the verse inside the bank; mood controls speed and calm breaks stay soft', () => {
+  const saturation = (c: readonly number[]) => (Math.max(...c.slice(0, 3)) - Math.min(...c.slice(0, 3))) / Math.max(...c);
+  const chorus = phrasePalette('chorus', 0.5, 'cool');
+  const verse = phrasePalette('verse-1', 0.5, 'cool');
+  assert.ok(saturation(chorus[0]) > saturation(verse[0]));
+  assert.notDeepEqual(chorus[1], verse[1]); // Violet accent instead of cyan, same family.
+  assert.ok(saturation(phrasePalette('break', 0.5, 'cool')[0]) < saturation(verse[0]));
+  const mid = lightingProfile('mid', 'chorus', 'cool');
+  assert.ok(lightingProfile('low', 'chorus', 'cool').stepBeats > mid.stepBeats);
+  assert.ok(lightingProfile('mid', 'verse-1', 'cool').stepBeats > mid.stepBeats);
+  assert.ok(mid.fadeFraction >= 0.75);
+});

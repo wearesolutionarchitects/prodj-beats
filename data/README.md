@@ -79,3 +79,57 @@ Persisted macro timelines are not yet played as original rekordbox light shows.
 Restart the existing shared dev process after creating/replacing a cache; lookup
 results use a bounded per-subscription memo. Original device catalogs and venue
 setups are excluded. Tests contain synthetic data only.
+
+## Weitere Tracks mit der lokalen Bibliothek abgleichen / Synchronize more tracks
+
+Im Projektordner, nach dem Import der Lighting-Snapshots:
+
+```sh
+npm run bridge:build
+npm run lighting:sync -- /path/to/snapshot/master.db /path/to/rekordbox/share
+```
+
+Der erste Befehl kompiliert auch den Offline-Indexer; er startet keine Bridge.
+Bei verschlüsselten Bibliothekskopien benötigt der zweite Befehl das vorhandene
+`sqlcipher` und den Schlüssel in der Umgebungsvariable `REKORDBOX_DB_KEY`.
+Optional wählt `SQLCIPHER_BINARY` das SQLCipher-Programm. Keine Schlüssel in
+Repository-Dateien, Befehlsargumenten oder Logs speichern. Unverschlüsselte
+SQLite-Kopien funktionieren über Node ohne SQLCipher. Nur konsistente Snapshots
+verwenden; aktive WAL-/Journaldateien werden abgewiesen.
+
+Der Abgleich verbindet `djmdContent.MasterDBID` und `MasterSongID` mit den
+Lighting-Einträgen und liest Künstler, Titel, Dauer sowie `AnalysisDataPath`.
+Unterhalb des angegebenen Analyse-Verzeichnisses wird die passende `.EXT` gelesen.
+Der vorhandene crate-digger-Parser und die Phrasennormalisierung der Java-Bridge
+bilden den identischen kanonischen Fingerabdruck. Mehrdeutige Bibliotheks-IDs,
+fehlende Metadaten/Analysen, defekte Analysen und Pfade außerhalb dieses
+Verzeichnisses werden nicht als Zuordnung übernommen. Auch nach dem Abgleich
+bleiben identische Metadaten plus Phrasen mehrerer Bibliothekseinträge mehrdeutig.
+
+Die Zuordnungen tragen Bibliotheks- und Analyse-SHA-256 als Nachweis. Generierte
+Zuordnungen werden transaktional ersetzt; andere bestätigte Nachweise bleiben
+erhalten. Unveränderte Ergebnisse schreiben die Cache-Datei nicht erneut. Vor dem
+ersten Abgleich entsteht die private Sicherung `lighting.sqlite-library-sync-backup`
+(neben dem Cache, ebenfalls von Git ausgeschlossen). Es werden keine Original-
+Bibliotheken, Analysen oder LightingDB-Dateien verändert, keine Netzwerke oder
+Hardware angesprochen und keine rekordbox-Makros als Lichtshow abgespielt.
+Neue, bisher noch nicht abgefragte Tracks können den aktualisierten Cache direkt
+nutzen. Bereits pro Subscription zwischengespeicherte Ergebnisse benötigen einen
+Neustart des gemeinsamen Dev-Prozesses, insbesondere frühere Nichttreffer.
+
+From the repository root, run the commands above after importing lighting snapshots.
+The offline Java indexer uses the same crate-digger parser and phrase normalization
+as the live bridge, without starting network services. Encrypted library snapshots
+require the existing SQLCipher CLI and `REKORDBOX_DB_KEY` environment variable;
+plain SQLite snapshots use Node directly. Never store keys in the repository or logs.
+The sync joins library `MasterDBID`/`MasterSongID` to lighting entries, with exact
+metadata and a full canonical phrase fingerprint from each referenced `.EXT`.
+Missing/corrupt analyses, unsafe paths and ambiguous identities remain unmatched.
+Library and analysis hashes preserve evidence. Generated mappings refresh atomically;
+unchanged results leave the cache bytes intact. A private, Git-ignored backup is
+created before the first sync. Original files and hardware are never modified.
+New tracks use the updated cache on load; restart the shared dev process to clear
+previous per-subscription lookup results, including earlier misses.
+
+Parser reference: [crate-digger](https://github.com/Deep-Symmetry/crate-digger).
+Library schema reference: [pyrekordbox master database](https://pyrekordbox.readthedocs.io/en/latest/tutorial/db6.html).

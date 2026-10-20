@@ -8,10 +8,44 @@ import java.util.Map;
 
 /** Standalone tests using installed beat-link JARs; no hardware or network services required. */
 public final class BridgeRegressionTest {
+    private static void checkAnalysisIndex() throws Exception {
+        var file = Files.createTempFile("prodj-synthetic-anlz-", ".EXT");
+        var input = System.in;
+        var output = System.out;
+        try {
+            var bytes = java.nio.ByteBuffer.allocate(120);
+            bytes.put(new byte[]{'P','M','A','I'}).putInt(28).putInt(120);
+            bytes.position(28);
+            // Unknown sections are legal and have a null enum in crate-digger.
+            bytes.put(new byte[]{'Z','Z','Z','Z'}).putInt(12).putInt(12);
+            bytes.put(new byte[]{'P','S','S','I'}).putInt(32).putInt(80).putInt(24).putShort((short) 2);
+            bytes.putShort((short) 2).put(new byte[6]).putShort((short) 17).putShort((short) 0).put((byte) 0).put((byte) 0);
+            for (int index = 0; index < 2; index++) {
+                bytes.putShort((short) (index + 1)).putShort((short) (index * 8 + 1)).putShort((short) 1).put(new byte[18]);
+            }
+            Files.write(file, bytes.array());
+            var captured = new java.io.ByteArrayOutputStream();
+            System.setIn(new java.io.ByteArrayInputStream((file + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+            System.setOut(new java.io.PrintStream(captured, true, java.nio.charset.StandardCharsets.UTF_8));
+            AnalysisIndex.main(new String[0]);
+            String json = captured.toString(java.nio.charset.StandardCharsets.UTF_8);
+            check(json.contains("\"startBeat\":1,\"beats\":8,\"kind\":\"intro\""), "offline index uses canonical bridge phrases");
+            check(json.contains("\"startBeat\":9,\"beats\":8"), "offline index retains final phrase boundary");
+            Files.write(file, new byte[]{1, 2, 3});
+            captured.reset();
+            System.setIn(new java.io.ByteArrayInputStream((file + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+            AnalysisIndex.main(new String[0]);
+            check(captured.toString(java.nio.charset.StandardCharsets.UTF_8).contains("\"phrases\":[]"), "corrupt analysis has no inferred phrases");
+        } finally {
+            System.setIn(input); System.setOut(output); Files.deleteIfExists(file);
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         BeatLinkAdapter.configurePlayerNumber(new RunningCdj());
         checkStandardNumberSelection();
         checkWaveformCache();
+        checkAnalysisIndex();
         List<Integer> heights = BeatLinkAdapter.waveformHeights(new ExampleWaveform());
         check(heights.size() == 20, "one second produces twenty 50ms samples");
         check(heights.get(0) == 31 && heights.get(1) == 3, "bin boundaries retain peaks without shifting samples");

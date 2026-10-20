@@ -16,6 +16,7 @@
     "bridge:run": "node scripts/bridge-run.mjs",
     "test": "node --test --import tsx src/**/*.test.ts scripts/*.test.mjs",
     "fixture:replay": "node --import tsx src/scripts/replay-fixtures.ts",
+    "lighting:sync": "node --import tsx src/scripts/sync-lighting.ts",
     "lighting:import": "node --import tsx src/scripts/import-lighting.ts"
   },
   "dependencies": {

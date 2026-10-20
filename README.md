@@ -162,7 +162,8 @@ die letzten Werte mit Fehlerstatus sichtbar. Auch im Browser-Replay beschreiben
 diese Werte ausschließlich den separaten Live-Sender. UDP-Erfolg ist weiterhin
 keine Bestätigung des physischen Leuchtenzustands.
 
-Die Phrasen nutzen abgestimmte Farbpaare: Intro/Outro Blau/Cyan, Refrain
+Bei `default` oder unbekannter Bank nutzen die Phrasen die bisherigen Farbpaare:
+Intro/Outro Blau/Cyan, Refrain
 Gold/Koralle, Break Violett/Blau und Strophe beziehungsweise unbekannte Phrase
 Grün/Blau. Beide Bänke wechseln ihre Farbrollen alle vier Takte auf Beat 1.
 Eine separate, über zwei Sekunden geglättete Waveform-Energie steuert Sättigung
@@ -173,18 +174,22 @@ Beat 1 übernommen und weich überblendet. Fehlende Waveform-/Positionsdaten
 verwenden neutrale Farben, ohne Energie zu erfinden. Live und Replay nutzen
 dieselbe positionsbezogene Berechnung; der Geräte-/Trackwechsel setzt sie zurück.
 
-Die vom Track übermittelte **Lighting-Bank** wirkt zusätzlich auf den Stil.
+Die effektive **Lighting-Bank** bestimmt die Grundpalette. Mood steuert die
+Geschwindigkeit, Phrase die Inszenierung und Akzente innerhalb dieser Farbwelt.
+Beispiel `mid · chorus · cool`: Blau/Violett statt Gold/Koralle, auf den Beats
+abwechselnd alle acht Spots und Gruppenwechsel, mit weichen Übergängen. Ruhige
+Phrasen werden entsättigt; der Chorus erhält stärkere, weiterhin verwandte Akzente.
 Diese ProDJ-Beats-Zuordnungen bilden keine originalen rekordbox-Makros nach:
 
 | Bank | Ergänzung zu Phrase, Mood und Energie |
 | --- | --- |
 | `default`, unbekannt oder fehlend | Bisheriges Verhalten unverändert |
-| `cool` / `warm` | Kleine kühlere/wärmere Farbverschiebung, weichere Übergänge, zurückhaltendere Pulse |
-| `natural` | Etwas weniger Sättigung, weichere Übergänge und Pulse |
-| `hot` / `vivid` | Wärmer beziehungsweise satter, weiterhin mit weichen Übergängen |
-| `subtle` | Weniger Sättigung, doppelte Schrittlänge, lange Überblendungen, halbierte Pulsstärke |
-| `club-1` | Etwas satter, weichere Übergänge und gedämpfte Pulse |
-| `club-2` | Leicht verschobene Farbtöne, doppelte Schrittlänge, weichere Übergänge und Pulse |
+| `cool` / `warm` | Blau/Cyan/Violett beziehungsweise Amber/Orange/Gold, weiche Übergänge und zurückhaltendere Pulse |
+| `natural` | Grün/Mint/Oliv, reduzierte Sättigung, weichere Übergänge und Pulse |
+| `hot` / `vivid` | Rot/Orange/Magenta beziehungsweise Cyan/Violett/Magenta, weiche Übergänge |
+| `subtle` | Pastellblau/Lavendel, reduzierte Sättigung, doppelte Schrittlänge, lange Überblendungen, halbe Pulsstärke |
+| `club-1` | Blau/Indigo/Violett, etwas satter, weichere Übergänge und gedämpfte Pulse |
+| `club-2` | Violett/Türkis/Magenta, doppelte Schrittlänge, weichere Übergänge und Pulse |
 
 Bankänderungen werden wie Mood und Phrase erst auf Beat 1 übernommen. Keine Bank
 beschleunigt die Schritte gegenüber dem bestehenden Profil; Schrittlängen bleiben
@@ -204,8 +209,14 @@ und synthetische Regressionstests sind Teil des Projekts.
 
 ```sh
 npm run lighting:import -- /path/to/snapshot/user.db3 /path/to/snapshot/macro.db3
+npm run bridge:build
+npm run lighting:sync -- /path/to/snapshot/master.db /path/to/rekordbox/share
 ```
 
+Der Bibliotheksabgleich ergänzt weitere Zuordnungen über lokale Bibliotheks-IDs,
+exakte Metadaten und die zugehörigen Analysedateien. Bei verschlüsselten Snapshots
+werden SQLCipher und `REKORDBOX_DB_KEY` benötigt; Schlüssel bleiben außerhalb des
+Repositories und der Logs. Der Offline-Indexer startet keine Dienste.
 Identische Snapshots werden übersprungen, fehlerhafte Aktualisierungen vollständig
 zurückgerollt. Live und Replay verwenden denselben Anreicherungsfluss: Nur wenn
 Titel, Künstler, exakte Dauer und SHA-256 der vollständigen Phrasen einer einzigen
@@ -533,7 +544,8 @@ the last successful values alongside error status. Browser replay still shows
 the separate live sender's values. UDP success does not confirm physical fixture
 state.
 
-Phrases use related color pairs: blue/cyan for intro/outro, gold/coral for chorus,
+For `default` or unknown banks, phrases retain the established color pairs:
+blue/cyan for intro/outro, gold/coral for chorus,
 violet/blue for breaks and green/blue for verses or unknown phrases. Both banks
 exchange color roles every four bars on beat 1. A separate waveform energy
 envelope smoothed over two seconds adjusts saturation and limits hue shifts to
@@ -543,24 +555,28 @@ New color targets latch only on beat 1 and fade smoothly. Missing waveform or
 position data uses neutral palette colors without inventing energy. Live and
 replay share the same position-based calculation, reset on device/track changes.
 
-The track's **lighting bank** additionally shapes the style. These are ProDJ Beats
+The effective **lighting bank** owns the base palette. Mood controls speed;
+phrases control staging and related accents within that color family. For
+`mid · chorus · cool`, blue/violet replaces gold/coral, with all eight spots
+alternating with groups and smooth fades. Calm phrases are less saturated; the
+chorus adds stronger, related accents. These are ProDJ Beats
 interpretations, not reproductions of original rekordbox lighting macros:
 
 | Bank | Contribution alongside phrase, mood and energy |
 | --- | --- |
 | `default`, unknown or missing | Existing behavior unchanged |
-| `cool` / `warm` | Small cooler/warmer hue shifts, softer fades and pulses |
-| `natural` | Slightly reduced saturation, softer fades and pulses |
-| `hot` / `vivid` | Warmer or more saturated colors, retaining smooth fades |
-| `subtle` | Reduced saturation, doubled step length, long fades, half pulse strength |
-| `club-1` | Slightly more saturation, softer fades and reduced pulses |
-| `club-2` | Modest hue shift, doubled step length, softer fades and pulses |
+| `cool` / `warm` | Blue/cyan/violet or amber/orange/gold, softer fades and pulses |
+| `natural` | Green/mint/olive, reduced saturation, softer fades and pulses |
+| `hot` / `vivid` | Red/orange/magenta or cyan/violet/magenta, retaining smooth fades |
+| `subtle` | Pastel blue/lavender, reduced saturation, doubled step length, long fades, half pulse strength |
+| `club-1` | Blue/indigo/violet, slightly more saturation, softer fades and reduced pulses |
+| `club-2` | Violet/teal/magenta, doubled step length, softer fades and pulses |
 
 Bank changes latch on beat 1, alongside mood and phrase. No bank speeds up the
 existing profile; step lengths stay within 1–8 observed beats. Energy adds no more
 than ±8 degrees around the bank palette. There are no random color changes,
 additional strobe pulses or device-microphone analysis. The player card displays
-the received bank while any pending style change waits for beat 1. Live, replay,
+the effective bank and its origin while any pending style change waits for beat 1. Live, replay,
 preview and DMX share the same style calculation.
 
 #### Persistent local lighting data
@@ -573,9 +589,14 @@ tests are part of the project.
 
 ```sh
 npm run lighting:import -- /path/to/snapshot/user.db3 /path/to/snapshot/macro.db3
+npm run bridge:build
+npm run lighting:sync -- /path/to/snapshot/master.db /path/to/rekordbox/share
 ```
 
-Identical snapshots are skipped and failed refreshes roll back atomically. The
+Library sync adds mappings using local library IDs, exact metadata and each
+track’s analysis file. Encrypted snapshots require SQLCipher and
+`REKORDBOX_DB_KEY`; keys stay out of the repository and logs. The offline indexer
+starts no services. Identical snapshots are skipped and failed refreshes roll back atomically. The
 same enrichment path serves live and replay. Lighting uses the cached bank only
 when title, artist, exact duration and the complete phrase SHA-256 match exactly
 one verified library identity. The player card labels “SQLite cache” and retains

@@ -125,8 +125,10 @@ test('phrase-driven full rig, groups, wash and fan share live/replay frames acro
     events.push(beat, { ...beat, ms: beat.ms + 20 }); // duplicate adapter reception
   }
   for (const mood of ['low', 'mid', 'high', 'unknown']) {
-    const parsed = new EventParser().parseMany(events).map(event => event.type === 'structure' ? { ...event, payload: { ...event.payload, mood } } : event);
-    const state = compare(parsed, ['fan', 'groups', 'all', 'wash']);
-    assert.equal(state.lighting.pattern, 'fan');
+    for (const bank of ['default', 'cool', 'warm', 'subtle']) {
+      const parsed = new EventParser().parseMany(events).map(event => event.type === 'structure' ? { ...event, payload: { ...event.payload, mood, bank } } : event);
+      const state = compare(parsed, ['fan', 'groups', 'all', 'wash']);
+      assert.equal(state.lighting.pattern, 'fan');
+    }
   }
 });
